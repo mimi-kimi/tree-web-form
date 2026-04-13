@@ -165,6 +165,148 @@ $pre_circumf    = v($d, 'tree_circumference');
     .yn-item { display:flex; align-items:center; gap:10px; }
     .yn-item label { margin:0; font-size:12px; }
     .yn-item .yn-buttons { display:flex; gap:8px; }
+    /* Mobile optimizations for inspect.php */
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+    
+    .topbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .topbar h1 {
+        font-size: 1.3rem;
+    }
+    
+    .btn-row {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .btn-row .btn {
+        width: 100%;
+        text-align: center;
+        margin: 2px 0;
+    }
+    
+    .card {
+        padding: 12px;
+    }
+    
+    .card h2 {
+        font-size: 1.1rem;
+    }
+    
+    .grid2, .grid3, .grid4 {
+        grid-template-columns: 1fr !important;
+        gap: 10px;
+    }
+    
+    .grid-yn {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .yn-item {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 8px;
+        padding: 10px;
+        background: #f8fafc;
+        border-radius: 8px;
+        margin-bottom: 8px;
+    }
+    
+    .yn-buttons {
+        display: flex;
+        gap: 15px;
+    }
+    
+    .form-section .grid4 {
+        grid-template-columns: 1fr 1fr !important;
+    }
+    
+    .form-section .grid4 label {
+        font-size: 12px;
+    }
+    
+    .mitigation-table {
+        font-size: 10px;
+    }
+    
+    .mitigation-table th, 
+    .mitigation-table td {
+        padding: 6px 2px;
+    }
+    
+    .priority-btn {
+        width: 30px !important;
+        height: 30px !important;
+    }
+    
+    .field input, 
+    .field textarea, 
+    .field select {
+        font-size: 16px !important; /* Prevents zoom on iOS */
+    }
+    
+    .yn-group {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .alert {
+        font-size: 13px;
+    }
+    
+    /* Stack radio buttons vertically on mobile for better tap targets */
+    .yn-group label {
+        padding: 8px 0;
+    }
+    
+    /* Better touch targets */
+    button, 
+    .btn, 
+    .priority-btn,
+    input[type="checkbox"] + label,
+    input[type="radio"] + label {
+        cursor: pointer;
+        min-height: 44px; /* Better touch target size */
+    }
+    
+    input[type="checkbox"], 
+    input[type="radio"] {
+        transform: scale(1.2);
+        margin-right: 8px;
+    }
+}
+/* Smooth scrolling for mobile */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Better form section separation on mobile */
+.form-section {
+    margin-top: 20px;
+    padding-top: 15px;
+}
+
+/* Make the tree data card more compact on mobile */
+.card[style*="background:#f0fdf4"] .grid4 {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px;
+}
+
+/* Improve modal on mobile */
+@media (max-width: 768px) {
+    .modal-content {
+        width: 90%;
+        margin: 20px;
+        padding: 20px;
+    }
+}
   </style>
 </head>
 <body>
@@ -707,5 +849,6 @@ document.querySelectorAll('.priority-btn').forEach(btn => {
     });
 });
 </script>
+
 </body>
 </html>
