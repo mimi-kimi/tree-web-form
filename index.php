@@ -128,7 +128,15 @@ $deleted = $_GET['deleted'] ?? '';
     cursor: pointer;
     order: 2; /* Checkbox after text */
 }
+.btn-print-all {
+    background: #8b5cf6;
+    color: white;
+}
 
+.btn-export-excel {
+    background: #10b981;
+    color: white;
+}
 /* Mobile: stack vertically with checkbox on right */
 @media (max-width: 640px) {
     .upload-footer {
@@ -785,6 +793,10 @@ $deleted = $_GET['deleted'] ?? '';
       <div class="selector-buttons">
         <button type="button" class="set-active-btn" onclick="setAsActive()">Set as Active</button>
         <button type="button" class="delete-btn" onclick="showDeleteModalForSelected()"> Delete Current Dataset</button>
+         <?php if ($active_upload_id && $total_trees > 0): ?>
+        <button type="button" class="btn-print-all" onclick="window.location.href='print_all.php?upload_id=<?= $active_upload_id ?>'">🖨️ Print All</button>
+        <button type="button" class="btn-export-excel" onclick="window.location.href='export_excel.php?upload_id=<?= $active_upload_id ?>'">📊 Export to Excel</button>
+        <?php endif; ?>
       </div>
     </form>
 </div>
@@ -798,6 +810,21 @@ $deleted = $_GET['deleted'] ?? '';
       <span style="font-size: 12px; font-weight: normal;">Showing <?= $offset + 1 ?> - <?= min($offset + $items_per_page, $total_trees) ?> of <?= $total_trees ?></span>
       <?php endif; ?>
     </h2>
+    
+    <!-- Summary Stats -->
+    <?php if ($total_trees > 0): 
+        $completedCount = 0;
+        foreach ($trees as $t) {
+            if (!empty($t['prepared_by'])) $completedCount++;
+        }
+        $incompleteCount = $total_trees - $completedCount;
+    ?>
+    <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">
+        <span style="font-size: 13px;"><strong>Total Trees:</strong> <?= $total_trees ?></span>
+        <span style="font-size: 13px;"><strong>Completed:</strong> <?= $completedCount ?></span>
+        <span style="font-size: 13px;"><strong>Incomplete:</strong> <?= $incompleteCount ?></span>
+    </div>
+    <?php endif; ?>
     
     <?php if (empty($trees)): ?>
       <p class="text-center text-muted mt-4">
