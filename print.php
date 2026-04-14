@@ -142,6 +142,48 @@ function formatMeasurement($value, $unit, $default = '______') {
     .name-line {
       margin-top: 20px;
     }
+    /* Notes section - prevents overflow */
+.notes-section {
+    margin: 8px 0;
+    page-break-inside: avoid;
+}
+
+.notes-label {
+    font-weight: bold;
+    font-size: 10px;
+    margin-bottom: 4px;
+}
+
+.notes-content {
+    border: 1px solid #ccc;
+    padding: 10px;
+    min-height: 80px;
+    font-size: 9px;
+    line-height: 1.4;
+    word-wrap: break-word;
+    word-break: break-word;
+    white-space: normal;
+    background: #fafafa;
+    border-radius: 4px;
+}
+
+/* For long text without spaces */
+.notes-content {
+    overflow-wrap: break-word;
+    hyphens: auto;
+}
+
+/* Print-specific notes styling */
+@media print {
+    .notes-content {
+        border: 1px solid #aaa;
+        min-height: 60px;
+        padding: 8px;
+        background: white;
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+}
 
     @media print {
       .no-print { display:none !important; }
@@ -245,7 +287,7 @@ function formatMeasurement($value, $unit, $default = '______') {
     <span class="inline">BRANCHES <?= box($d,'sp_branches') ?></span>
     <span class="inline">TRUNK <?= box($d,'sp_trunk') ?></span>
     <span class="inline">ROOTS <?= box($d,'sp_roots') ?></span>
-    <span class="lbl">DESCRIBE</span>
+    <span class="lbl lbl-auto">DESCRIBE</span>
     <span class="val val-md"><?= val($d,'sp_describe') ?></span>
     <span class="inline">NONE <?= box($d,'sp_none') ?></span>
   </div>
@@ -285,16 +327,16 @@ function formatMeasurement($value, $unit, $default = '______') {
     <span class="yn-pair">YES <?= ynBox($d,'dead_twigs','YES') ?></span>
     <span class="yn-pair">NO <?= ynBox($d,'dead_twigs','NO') ?></span>
     <span class="val" style="min-width:28px"><?= val($d,'dead_twigs_pct') ?></span>% OVERALL
-    <span class="lbl">MAX DIA</span>
+    <span class="lbl lbl-auto">MAX DIA</span>
     <span class="val"><?= val($d,'dead_twigs_dia') ?></span>
   </div>
   <div class="row">
     <span class="lbl">BROKEN/HANGERS:</span>
     <span class="yn-pair">YES <?= ynBox($d,'broken_hangers','YES') ?></span>
     <span class="yn-pair">NO <?= ynBox($d,'broken_hangers','NO') ?></span>
-    <span class="lbl">NUMBER</span>
+    <span class="lbl lbl-auto">NUMBER</span>
     <span class="val"><?= val($d,'broken_num') ?></span>
-    <span class="lbl">MAX DIA</span>
+    <span class="lbl lbl-auto">MAX DIA</span>
     <span class="val"><?= val($d,'broken_dia') ?></span>
     <span class="lbl" style="margin-left:10px">OVER-EXTENDED BRANCHES:</span>
     <span class="yn-pair">YES <?= ynBox($d,'over_extended','YES') ?></span>
@@ -386,7 +428,7 @@ function formatMeasurement($value, $unit, $default = '______') {
     <span class="lbl">COLLAR BURIED/NOT VISIBLE:</span>
     <span class="yn-pair">YES <?= ynBox($d,'collar_buried','YES') ?></span>
     <span class="yn-pair">NO <?= ynBox($d,'collar_buried','NO') ?></span>
-    <span class="lbl">Depth:</span>
+    <span class="lbl lbl-auto">Depth:</span>
     <span class="val"><?= val($d,'collar_depth') ?></span>
     <span class="lbl" style="margin-left:10px">STEM GIRDLING:</span>
     <span class="yn-pair">YES <?= ynBox($d,'stem_girdling','YES') ?></span>
@@ -426,12 +468,12 @@ function formatMeasurement($value, $unit, $default = '______') {
   <hr>
 
   <!-- OVERALL COMMENTS -->
-  <div class="sec">OVERALL TREE INSPECTION COMMENTS</div>
-  <div class="row">
-    <span class="lbl">NOTES:</span>
-    <span class="val" style="min-width:430px"><?= nl2br(val($d,'notes')) ?></span>
-  </div>
-  <hr>
+<div class="sec">OVERALL TREE INSPECTION COMMENTS</div>
+<div class="notes-section">
+    <div class="notes-label">NOTES:</div>
+    <div class="notes-content"><?= nl2br(htmlspecialchars($d['notes'] ?? '')) ?></div>
+</div>
+<hr>
 
     <!-- MITIGATION + PREPARED BY -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:6px">

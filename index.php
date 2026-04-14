@@ -721,7 +721,7 @@ $deleted = $_GET['deleted'] ?? '';
 </div>
 
   <div class="topbar">
-    <h1>🌳 Tree Inspection System</h1>
+    <h1>Tree Inspection System</h1>
   </div>
 
   <?php if ($msg === 'uploaded'): ?>
@@ -758,11 +758,11 @@ $deleted = $_GET['deleted'] ?? '';
     
     <!-- Checkbox and button row - checkbox on the right -->
     <div class="upload-footer">
-      <button type="submit" class="btn btn-green">📂 Upload &amp; Import</button>
-      <label class="checkbox-label">
+        <label class="checkbox-label">
         <span>Set as active dataset</span>
         <input type="checkbox" name="set_active" value="1" checked>
       </label>
+      <button type="submit" class="btn btn-green"> Upload &amp; Import</button>
     </div>
   </form>
 </div>
@@ -781,8 +781,8 @@ $deleted = $_GET['deleted'] ?? '';
         <?php endforeach; ?>
       </select>
       <div class="selector-buttons">
-        <button type="button" class="set-active-btn" onclick="setAsActive()">⭐ Set as Active</button>
-        <button type="button" class="delete-btn" onclick="showDeleteModalForSelected()">🗑️ Delete Current Dataset</button>
+        <button type="button" class="set-active-btn" onclick="setAsActive()">Set as Active</button>
+        <button type="button" class="delete-btn" onclick="showDeleteModalForSelected()"> Delete Current Dataset</button>
       </div>
     </form>
 </div>
@@ -829,18 +829,18 @@ $deleted = $_GET['deleted'] ?? '';
             <td><?= round(htmlspecialchars($t['carbon_stock']), 2) ?></td>
             <td>
               <?php if (!empty($t['prepared_by'])): ?>
-                <span class="badge-green">✓ Completed</span>
+                <span class="badge-green">Completed</span>
               <?php else: ?>
-                <span style="background:#fef3c7;color:#92400e;padding:4px 8px;border-radius:20px;font-size:11px;">⏳ Incomplete</span>
+                <span style="background:#fef3c7;color:#92400e;padding:4px 8px;border-radius:20px;font-size:11px;">Incomplete</span>
               <?php endif; ?>
             </td>
             <td>
               <div class="btn-row">
                 <a href="inspect.php?tree_id=<?= $t['id'] ?>&upload_id=<?= $active_upload_id ?>" class="btn btn-blue" style="padding:5px 12px;font-size:12px">
-                  <?= $t['insp_id'] ? '✏️ Edit' : '📝 Fill' ?>
+                  <?= $t['insp_id'] ? 'Edit' : 'Fill' ?>
                 </a>
                 <?php if ($t['insp_id']): ?>
-                <a href="print.php?id=<?= $t['insp_id'] ?>" class="btn btn-gray" style="padding:5px 12px;font-size:12px" target="_blank">🖨️ Print</a>
+                <a href="print.php?id=<?= $t['insp_id'] ?>" class="btn btn-gray" style="padding:5px 12px;font-size:12px" target="_blank">Print</a>
                 <?php endif; ?>
               </div>
             </td>
