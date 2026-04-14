@@ -888,11 +888,11 @@ $deleted = $_GET['deleted'] ?? '';
         
         <div class="tree-actions">
           <a href="inspect.php?tree_id=<?= $t['id'] ?>&upload_id=<?= $active_upload_id ?>" class="btn btn-blue">
-            <?= $t['insp_id'] ? '✏️ Edit Form' : '📝 Fill Form' ?>
+            <?= $t['insp_id'] ? 'Edit Form' : 'Fill Form' ?>
           </a>
           <?php if ($t['insp_id']): ?>
           <a href="print.php?id=<?= $t['insp_id'] ?>" class="btn btn-gray" target="_blank">
-            🖨️ Print
+             Print
           </a>
           <?php endif; ?>
         </div>
