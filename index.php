@@ -734,6 +734,8 @@ $deleted = $_GET['deleted'] ?? '';
   <div class="alert alert-success">🗑️ Dataset deleted successfully!</div>
   <?php elseif (isset($error)): ?>
   <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
+  <?php elseif ($msg === 'missing_name'): ?>
+    <div class="alert alert-error">❌ Upload failed. Please provide a name for the dataset.</div>
   <?php endif; ?>
 
   <!-- Upload Card -->
@@ -744,12 +746,12 @@ $deleted = $_GET['deleted'] ?? '';
       <label>Excel File (.xlsx or .csv)</label>
       <input type="file" name="excel" accept=".xlsx,.csv" required>
     </div>
-    <div class="field">
-      <label>Upload Name (optional)</label>
-      <input type="text" name="upload_name" placeholder="e.g., Site A - March 2024">
+        <div class="field">
+        <label>Upload Name</label>
+        <input type="text" name="upload_name" placeholder="e.g., Site A - March 2024" required>
     </div>
     <div class="field">
-      <label>Description</label>
+      <label>Description (optional)</label>
       <input type="text" name="description" placeholder="Additional notes about this dataset">
     </div>
     

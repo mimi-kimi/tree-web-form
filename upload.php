@@ -58,7 +58,15 @@ foreach ($headers as $i => $h) {
 $db = db();
 
 // Get upload name from POST or generate from filename
-$upload_name = $_POST['upload_name'] ?? pathinfo($file['name'], PATHINFO_FILENAME);
+// Get upload name from POST (now required)
+$upload_name = trim($_POST['upload_name'] ?? '');
+
+// Validate required field
+if (empty($upload_name)) {
+    header('Location: index.php?msg=missing_name');
+    exit;
+}
+
 $description = $_POST['description'] ?? '';
 
 // Create new upload record
