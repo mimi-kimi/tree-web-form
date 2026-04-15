@@ -39,7 +39,7 @@ $search_tree_id = isset($_GET['search_tree_id']) ? trim($_GET['search_tree_id'])
 $search_location = isset($_GET['search_location']) ? trim($_GET['search_location']) : '';
 $filter_status = isset($_GET['filter_status']) ? $_GET['filter_status'] : '';
 
-// Build WHERE conditions for search
+// Build WHERE conditions
 $whereConditions = ["t.upload_id = ?"];
 $params = [$active_upload_id];
 
@@ -52,6 +52,7 @@ if ($search_location !== '') {
     $whereConditions[] = "i.tree_location LIKE ?";
     $params[] = "%$search_location%";
 }
+
 if ($filter_status !== '') {
     if ($filter_status === 'completed') {
         $whereConditions[] = "i.prepared_by IS NOT NULL AND i.prepared_by != ''";
@@ -67,7 +68,6 @@ $total_trees = 0;
 $trees = [];
 $selectedUploadName = '';
 if ($active_upload_id) {
-    // Get total count with filters
     $countSql = "
         SELECT COUNT(*) 
         FROM trees t 
@@ -78,22 +78,19 @@ if ($active_upload_id) {
     $countStmt->execute($params);
     $total_trees = $countStmt->fetchColumn();
     
-    // Get trees with pagination and filters
     $sql = "
-    SELECT 
-        t.*, 
-        i.insp_id, 
-        i.prepared_by,
-        i.tree_location
-    FROM trees t 
-    LEFT JOIN inspections i ON i.tree_id = t.id AND i.upload_id = t.upload_id
-    WHERE $whereClause
-    ORDER BY t.id ASC
-    LIMIT ? OFFSET ?
-";
+        SELECT 
+            t.*, 
+            i.insp_id, 
+            i.prepared_by,
+            i.tree_location
+        FROM trees t 
+        LEFT JOIN inspections i ON i.tree_id = t.id AND i.upload_id = t.upload_id
+        WHERE $whereClause
+        ORDER BY t.id ASC
+        LIMIT ? OFFSET ?
+    ";
     $stmt = $pdo->prepare($sql);
-    
-    // Bind parameters
     foreach ($params as $idx => $val) {
         $stmt->bindValue($idx + 1, $val, PDO::PARAM_STR);
     }
@@ -114,1094 +111,950 @@ $deleted = $_GET['deleted'] ?? '';
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
-  <title>Tree Inspection System</title>
-  <link rel="stylesheet" href="assets/style.css">
-  <style>
-    * {
-        box-sizing: border-box;
-    }
-    /* Form separator - creates visual gap */
-.form-separator {
-    height: 1px;
-    background: linear-gradient(to right, transparent, #e2e8f0, transparent);
-    margin: 20px 0 16px 0;
-}
-
-/* Upload footer with checkbox on the right */
-.upload-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20px;
-    margin-top: 8px;
-    flex-wrap: wrap;
-}
-
-.upload-footer .btn {
-    width: auto;
-    margin: 0;
-}
-
-/* Checkbox label styling - text on left, checkbox on right */
-.checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    cursor: pointer;
-    font-weight: normal;
-    font-size: 14px;
-    color: #334155;
-    padding: 10px 0;
-}
-
-.checkbox-label span {
-    cursor: pointer;
-    order: 1; /* Text first */
-}
-
-.checkbox-label input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    margin: 0;
-    cursor: pointer;
-    order: 2; /* Checkbox after text */
-}
-.btn-print-all {
-    background: #8b5cf6;
-    color: white;
-}
-
-.btn-export-excel {
-    background: #10b981;
-    color: white;
-}
-/* Mobile: stack vertically with checkbox on right */
-@media (max-width: 640px) {
-    .upload-footer {
-        flex-direction: column-reverse;
-        align-items: stretch;
-        gap: 12px;
-    }
-    
-    .upload-footer .btn {
-        width: 100%;
-    }
-    
-    .checkbox-label {
-        justify-content: space-between;
-        padding: 12px;
-        background: #f8fafc;
-        border-radius: 8px;
-    }
-    }
-    .upload-sele    ctor {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 20px;
-}
-
-.upload-selector strong {
-    display: block;
-    margin-bottom: 12px;
-    font-size: 14px;
-}
-
-.selector-form {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.upload-selector select {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    background: white;
-    font-size: 14px;
-}
-
-.selector-buttons {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-
-.selector-buttons button {
-    flex: 1;
-    padding: 10px 16px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    transition: all 0.2s;
-    text-align: center;
-}
-
-.selector-buttons button[type="submit"] {
-    background: #3b82f6;
-    color: white;
-}
-
-.set-active-btn {
-    background: #f59e0b;
-    color: white;
-}
-
-.delete-btn {
-    background: #ef4444;
-    color: white;
-}
-
-/* Mobile: buttons stack vertically */
-@media (max-width: 640px) {
-    .selector-buttons {
-        flex-direction: column;
-    }
-    
-    .selector-buttons button {
-        width: 100%;
-    }
-}
-
-/* Desktop: buttons side by side */
-@media (min-width: 641px) {
-    .selector-buttons {
-        flex-direction: row;
-    }
-    
-    .selector-buttons button {
-        flex: 1;
-    }
-}
-    body {
-        margin: 0;
-        padding: 0;
-        background: #f1f5f9;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    }
-    
-    .container {
-        max-width: 100%;
-        padding: 12px;
-        margin: 0 auto;
-    }
-    
-    .topbar {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        margin-bottom: 20px;
-        padding-bottom: 10px;
-        border-bottom: 2px solid #e2e8f0;
-    }
-    
-    .topbar h1 {
-        font-size: 1.5rem;
-        margin: 0;
-        color: #1e293b;
-    }
-    
-    .badge {
-        display: inline-block;
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: 600;
-        align-self: flex-start;
-    }
-    
-    .badge-blue {
-        background: #dbeafe;
-        color: #1e40af;
-    }
-    
-    .card {
-        background: white;
-        border-radius: 12px;
-        padding: 16px;
-        margin-bottom: 20px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    
-    .card h2 {
-        font-size: 1.2rem;
-        margin-top: 0;
-        margin-bottom: 16px;
-        color: #0f172a;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 10px;
-    }
-    
-    .alert {
-        padding: 12px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        font-size: 14px;
-    }
-    
-    .alert-success {
-        background: #dcfce7;
-        border: 1px solid #bbf7d0;
-        color: #166534;
-    }
-    
-    .alert-error {
-        background: #fee2e2;
-        border: 1px solid #fecaca;
-        color: #991b1b;
-    }
-    
-    .field {
-        margin-bottom: 12px;
-    }
-    
-    .field label {
-        display: block;
-        margin-bottom: 6px;
-        font-weight: 600;
-        font-size: 13px;
-        color: #334155;
-    }
-    
-    .field input[type="text"],
-    .field input[type="file"],
-    .field input[type="number"],
-    .field textarea,
-    .field select {
-        width: 100%;
-        padding: 10px;
-        border: 1px solid #cbd5e1;
-        border-radius: 8px;
-        font-size: 14px;
-        font-family: inherit;
-    }
-    
-    .btn {
-        display: inline-block;
-        padding: 10px 16px;
-        border: none;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        text-decoration: none;
-        text-align: center;
-        transition: all 0.2s;
-    }
-    
-    .btn:active {
-        transform: scale(0.98);
-    }
-    
-    .btn-green {
-        background: #10b981;
-        color: white;
-        width: 100%;
-    }
-    
-    .btn-blue {
-        background: #3b82f6;
-        color: white;
-    }
-    
-    .btn-gray {
-        background: #64748b;
-        color: white;
-    }
-    
-    .btn-red {
-        background: #ef4444;
-        color: white;
-    }
-    
-    .upload-selector {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 16px;
-        margin-bottom: 20px;
-    }
-    
-    .upload-selector form {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-    }
-    
-    .upload-selector select {
-        width: 100%;
-        padding: 10px;
-        border: 1px solid #cbd5e1;
-        border-radius: 8px;
-        background: white;
-        font-size: 14px;
-    }
-    
-    .upload-selector button {
-        background: #3b82f6;
-        color: white;
-        border: none;
-        padding: 10px;
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 14px;
-    }
-    
-    .delete-btn {
-        background: #ef4444;
-        color: white;
-        border: none;
-        padding: 10px;
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 14px;
-        margin-top: 8px;
-    }
-    
-    /* Search Filter Bar Styles */
-    .search-filter-bar {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 16px;
-        margin-bottom: 20px;
-    }
-    
-    .search-filter-title {
-        font-weight: 600;
-        color: #1e293b;
-        font-size: 14px;
-        margin-bottom: 12px;
-    }
-    
-    .search-filter-row {
-        display: flex;
-        gap: 15px;
-        align-items: flex-end;
-        flex-wrap: wrap;
-    }
-    
-    .search-filter-row .field {
-        flex: 1;
-        margin-bottom: 0;
-        min-width: 150px;
-    }
-    
-    .search-filter-actions {
-        display: flex;
-        gap: 10px;
-        flex-shrink: 0;
-    }
-    
-    .btn-search {
-        background: #3b82f6;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 10px 20px;
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: 600;
-    }
-    
-    .btn-search-reset {
-        background: #64748b;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 10px 20px;
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: 600;
-        text-decoration: none;
-        display: inline-block;
-        text-align: center;
-    }
-    
-    @media (max-width: 640px) {
-        .search-filter-row {
-            flex-direction: column;
-            align-items: stretch;
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Tree Inspection System | ERP</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        
-        .search-filter-actions {
-            flex-direction: column;
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f1f5f9;
+            color: #1e293b;
+            line-height: 1.5;
+            overflow-x: hidden;
         }
-        
-        .btn-search, .btn-search-reset {
-            width: 100%;
-            text-align: center;
+
+        /* ========== LAYOUT ========== */
+        .app-wrapper {
+            display: flex;
+            min-height: 100vh;
         }
-    }
-    
-    /* Pagination Styles */
-    .pagination {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 8px;
-        margin-top: 20px;
-        padding-top: 20px;
-        border-top: 1px solid #e2e8f0;
-        flex-wrap: wrap;
-    }
-    
-    .pagination a, .pagination span {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 40px;
-        height: 40px;
-        padding: 0 8px;
-        border-radius: 8px;
-        text-decoration: none;
-        font-size: 14px;
-        font-weight: 500;
-        transition: all 0.2s;
-    }
-    
-    .pagination a {
-        background: #f1f5f9;
-        color: #3b82f6;
-        border: 1px solid #e2e8f0;
-    }
-    
-    .pagination a:hover {
-        background: #3b82f6;
-        color: white;
-        border-color: #3b82f6;
-    }
-    
-    .pagination .active {
-        background: #3b82f6;
-        color: white;
-        border: 1px solid #3b82f6;
-    }
-    
-    .pagination .disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-        background: #f1f5f9;
-        color: #94a3b8;
-        border: 1px solid #e2e8f0;
-    }
-    
-    .pagination-info {
-        text-align: center;
-        font-size: 13px;
-        color: #64748b;
-        margin-top: 12px;
-    }
-    
-    /* Mobile Table Styles */
-    @media (max-width: 768px) {
-        .desktop-table {
-            display: none;
-        }
-        
-        .mobile-cards {
+
+        /* ========== SIDEBAR ========== */
+        .sidebar {
+            width: 280px;
+            background: #1e293b;
+            color: #e2e8f0;
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 100;
         }
-        
-        .tree-card {
+
+        .sidebar-header {
+            display: flex;
+            flex-direction: column; 
+            padding: 24px 20px;
+            border-bottom: 1px solid #334155;
+        }
+
+        .sidebar-logo {
+            display: column;
+            align-items: center;
+            text-align: center;
+            gap: 12px;
+        }
+
+        .sidebar-logo-icon {
+            width: 32px;
+            height: 32px;
+            background: #b91c1c;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .sidebar-logo-text {
+            font-weight: 700;
+            font-size: 18px;
+            color: white;
+        }
+
+        .sidebar-logo-sub {
+            font-size: 16px;
+            color: #94a3b8;
+            margin-top: 2px;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px;
+            color: #cbd5e1;
+            text-decoration: none;
+            transition: all 0.2s;
+            margin: 4px 8px;
+            border-radius: 8px;
+        }
+
+        .nav-item:hover {
+            background: #334155;
+            color: white;
+        }
+
+        .nav-item.active {
+            background: #b91c1c;
+            color: white;
+        }
+
+        .nav-item i {
+            width: 20px;
+            font-size: 16px;
+        }
+
+        .nav-item span {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .sidebar-footer {
+            padding: 20px;
+            border-top: 1px solid #334155;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            background: #b91c1c;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+
+        .user-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .user-role {
+            font-size: 11px;
+            color: #94a3b8;
+        }
+        .sidebar-logo-img {
+        width: 100%;
+        height: auto;
+        object-fit: contain;
+        padding: 10 10px;
+    }
+
+    .sidebar-logo-icon-fallback {
+    width: 36px;
+    height: 36px;
+    background: #b91c1c;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    }
+        /* ========== MAIN CONTENT ========== */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            min-height: 100vh;
+        }
+
+        /* ========== TOP BAR ========== */
+        .top-bar {
             background: white;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 16px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-        }
-        
-        .tree-card-header {
+            border-bottom: 1px solid #e2e8f0;
+            padding: 16px 32px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #e2e8f0;
+            position: sticky;
+            top: 0;
+            z-index: 99;
         }
-        
-        .tree-id {
-            font-weight: bold;
-            font-size: 16px;
-            color: #1e293b;
-        }
-        
-        .tree-status {
-            font-size: 12px;
-            padding: 4px 8px;
-            border-radius: 20px;
-        }
-        
-        .status-complete {
-            background: #dcfce7;
-            color: #166534;
-        }
-        
-        .status-incomplete {
-            background: #fef3c7;
-            color: #92400e;
-        }
-        
-        .tree-details {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 16px;
-        }
-        
-        .detail-item {
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .detail-label {
-            font-size: 11px;
-            color: #64748b;
-            margin-bottom: 4px;
-        }
-        
-        .detail-value {
-            font-size: 14px;
+
+        .page-title h1 {
+            font-size: 20px;
             font-weight: 600;
             color: #0f172a;
         }
-        
-        .tree-actions {
+
+        .page-title p {
+            font-size: 13px;
+            color: #64748b;
+            margin-top: 2px;
+        }
+
+        /* ========== CONTENT AREA ========== */
+        .content-area {
+            padding: 24px 32px;
+        }
+
+        /* ========== CONTROL CARDS ========== */
+        .control-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .control-card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #0f172a;
+            margin-bottom: 16px;
             display: flex;
+            align-items: center;
             gap: 8px;
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px solid #e2e8f0;
         }
-        
-        .tree-actions .btn {
-            flex: 1;
-            text-align: center;
-            font-size: 12px;
-            padding: 8px;
+
+        .control-card-title i {
+            color: #b91c1c;
         }
+
+        /* ========== FILTER BAR ========== */
+        /* Filter Bar - Mobile Optimized */
+.filter-bar {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+.filter-group {
+    flex: 1;
+    min-width: 180px;
+}
+
+.filter-group label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #64748b;
+    margin-bottom: 6px;
+}
+
+.filter-group input,
+.filter-group select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+    background: white;
+}
+
+.filter-actions {
+    display: flex;
+    gap: 12px;
+}
+
+/* Mobile: Full width inputs */
+@media (max-width: 768px) {
+    .filter-bar {
+        flex-direction: column;
+        align-items: stretch;
     }
     
-    @media (min-width: 769px) {
-        .mobile-cards {
-            display: none;
+    .filter-group {
+        width: 100%;
+    }
+    
+    .filter-group input,
+    .filter-group select {
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    .filter-actions {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .filter-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+        /* ========== BUTTONS ========== */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            font-family: 'Inter', sans-serif;
         }
-        
-        .desktop-table {
-            display: block;
+
+        .btn-primary {
+            background: #b91c1c;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #991b1b;
+        }
+
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #334155;
+            border: 1px solid #e2e8f0;
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #cbd5e1;
+            color: #475569;
+        }
+
+        .btn-outline:hover {
+            background: #f8fafc;
+            border-color: #b91c1c;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 11px;
+        }
+
+        /* ========== DATA TABLE ========== */
+        .data-table-wrapper {
             overflow-x: auto;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            background: white;
         }
-        
-        table {
+
+        .data-table {
             width: 100%;
             border-collapse: collapse;
             font-size: 13px;
         }
-        
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        
-        th {
+
+        .data-table th {
             background: #f8fafc;
+            padding: 14px 16px;
+            text-align: left;
             font-weight: 600;
             color: #475569;
-            position: sticky;
-            top: 0;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
         }
-        
-        .btn-row {
+
+        .data-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f1f5f9;
+            color: #334155;
+        }
+
+        .data-table tr:hover td {
+            background: #fafcff;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .status-completed {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-incomplete {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        /* ========== PAGINATION ========== */
+        .pagination-container {
             display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .pagination {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .pagination a, .pagination span {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 36px;
+            height: 36px;
+            padding: 0 10px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .pagination a {
+            background: white;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+        }
+
+        .pagination a:hover {
+            background: #b91c1c;
+            color: white;
+            border-color: #b91c1c;
+        }
+
+        .pagination .active {
+            background: #b91c1c;
+            color: white;
+            border: 1px solid #b91c1c;
+        }
+
+        .pagination .disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #f1f5f9;
+            color: #94a3b8;
+        }
+
+        .pagination-info {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        /* ========== STATS BAR ========== */
+        .stats-bar {
+            display: flex;
+            gap: 24px;
+            padding: 16px 0;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: baseline;
             gap: 8px;
         }
-        
-        .btn-row .btn {
-            font-size: 11px;
-            padding: 5px 10px;
+
+        .stat-label {
+            font-size: 12px;
+            color: #64748b;
         }
-    }
-    
-    .badge-green {
-        background: #dcfce7;
-        color: #166534;
-        padding: 4px 8px;
-        border-radius: 20px;
-        font-size: 11px;
-    }
-    
-    .grid2, .grid3, .grid4 {
-        display: grid;
-        gap: 12px;
-    }
-    
-    .grid2 { grid-template-columns: 1fr; }
-    
-    @media (min-width: 640px) {
-        .container { padding: 20px; max-width: 1200px; }
-        .grid2 { grid-template-columns: 1fr 1fr; }
-        .btn-green { width: auto; margin-top: 20px; }
-        .upload-selector form { flex-direction: row; align-items: center; flex-wrap: wrap; }
-        .upload-selector select { width: auto; min-width: 250px; }
-        .upload-selector button { width: auto; }
-        .delete-btn { width: auto; margin-top: 0; }
-    }
-    
-    .modal {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.5);
-        z-index: 1000;
-        justify-content: center;
-        align-items: center;
-    }
-    
-    .modal-content {
-        background: white;
-        padding: 24px;
-        border-radius: 12px;
-        max-width: 90%;
-        width: 320px;
-        text-align: center;
-    }
-    
-    .modal-buttons {
-        display: flex;
-        gap: 12px;
-        justify-content: center;
-        margin-top: 20px;
-    }
-    
-    .modal-buttons button {
-        padding: 10px 20px;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-    }
-    
-    .confirm-delete { background: #ef4444; color: white; }
-    .cancel-delete { background: #9ca3af; color: white; }
-    
-    .text-center { text-align: center; }
-    .text-muted { color: #94a3b8; }
-    .mt-4 { margin-top: 40px; }
-    
-    /* Jump to page input */
-    .page-jump {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-        justify-content: center;
-        flex-wrap: wrap;
-    }
-    
-    .page-jump input {
-        width: 70px;
-        padding: 8px;
-        border: 1px solid #cbd5e1;
-        border-radius: 6px;
-        text-align: center;
-    }
-    
-    .page-jump button {
-        padding: 8px 12px;
-        background: #3b82f6;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-    }
-  </style>
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        /* ========== MODAL ========== */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        /* ========== MOBILE ========== */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s;
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .main-content {
+                margin-left: 0;
+            }
+            .content-area {
+                padding: 16px;
+            }
+            .top-bar {
+                padding: 12px 16px;
+            }
+            .filter-bar {
+                flex-direction: column;
+            }
+            .filter-actions {
+                flex-direction: column;
+            }
+            .filter-actions .btn {
+                width: 100%;
+                justify-content: center;
+            }
+            .stats-bar {
+                flex-wrap: wrap;
+                gap: 12px;
+            }
+            .mobile-cards {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+            .desktop-table {
+                display: none;
+            }
+            .tree-card {
+                background: white;
+                border: 1px solid #e2e8f0;
+                border-radius: 10px;
+                padding: 14px;
+            }
+            .tree-card-header {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 10px;
+                padding-bottom: 8px;
+                border-bottom: 1px solid #e2e8f0;
+            }
+            .tree-details {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+                margin-bottom: 12px;
+            }
+            .tree-actions {
+                display: flex;
+                gap: 8px;
+            }
+            .tree-actions .btn {
+                flex: 1;
+                justify-content: center;
+            }
+        }
+
+        @media (min-width: 769px) {
+            .mobile-cards {
+                display: none;
+            }
+            .desktop-table {
+                display: block;
+            }
+            .menu-toggle {
+                display: none;
+            }
+        }
+
+        .menu-toggle {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #475569;
+        }
+    </style>
 </head>
 <body>
-<div class="container">
+<div class="app-wrapper">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+            <img src="assets/HS Innovators sd bhd transparent.png" alt="HS innovators Sdn Bhd" class="sidebar-logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div>
+                <!--<div class="sidebar-logo-text" id="companyName">HS innovators sdn bhd</div>-->
+                <div class="sidebar-logo-sub">Tree Inspection Management</div>
+            </div>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item active">
+                <i class="fas fa-tree"></i>
+                <span>Tree Inventory</span>
+            </a>
+            <a href="#" class="nav-item">
+                <i class="fas fa-chart-line"></i>
+                <span>Analytics</span>
+            </a>
+            <a href="#" class="nav-item">
+                <i class="fas fa-file-alt"></i>
+                <span>Reports</span>
+            </a>
+            <a href="#" class="nav-item">
+                <i class="fas fa-database"></i>
+                <span>Datasets</span>
+            </a>
+            <a href="#" class="nav-item">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar">A</div>
+                <div>
+                    <div class="user-name">Admin User</div>
+                    <div class="user-role">System Administrator</div>
+                </div>
+            </div>
+        </div>
+    </aside>
 
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="top-bar">
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()">☰</button>
+                <div class="page-title">
+                    <h1>Tree Inventory</h1>
+                    <p>Manage and inspect tree assets</p>
+                </div>
+            </div>
+            <div>
+                <i class="fas fa-search" style="color: #94a3b8; cursor: pointer;"></i>
+            </div>
+        </div>
+
+        <div class="content-area">
+            <!-- Alerts -->
+            <?php if ($msg === 'uploaded'): ?>
+            <div style="background: #dcfce7; border: 1px solid #bbf7d0; color: #166534; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px;">
+                Excel uploaded! <strong><?= (int)($_GET['count'] ?? 0) ?> trees</strong> imported.
+            </div>
+            <?php elseif ($msg === 'error'): ?>
+            <div style="background: #fee2e2; border: 1px solid #fecaca; color: #991b1b; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px;">
+                Upload failed. Use .xlsx or .csv with correct columns.
+            </div>
+            <?php elseif ($deleted == 1): ?>
+            <div style="background: #dcfce7; border: 1px solid #bbf7d0; color: #166534; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px;">
+                Dataset deleted.
+            </div>
+            <?php elseif ($msg === 'missing_name'): ?>
+            <div style="background: #fee2e2; border: 1px solid #fecaca; color: #991b1b; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px;">
+                Please provide a name for the dataset.
+            </div>
+            <?php endif; ?>
+
+            <!-- Control Panel -->
+            <div class="control-card">
+                <div class="control-card-title">
+                    <i class="fas fa-cloud-upload-alt"></i> Data Management
+                </div>
+                <form action="upload.php" method="POST" enctype="multipart/form-data">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 16px;">
+                        <div>
+                            <label style="font-size: 12px; font-weight: 500; color: #475569;">Excel File</label>
+                            <input type="file" name="excel" accept=".xlsx,.csv" required style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; font-weight: 500; color: #475569;">Upload Name</label>
+                            <input type="text" name="upload_name" placeholder="e.g., Site A - March 2024" required style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; font-weight: 500; color: #475569;">Description (optional)</label>
+                            <input type="text" name="description" placeholder="Additional notes" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px;">
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                        <label style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" name="set_active" value="1" checked> Set as active dataset
+                        </label>
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-upload"></i> Upload & Import</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Dataset Selector -->
+            <?php if (!empty($uploads) && $active_upload_id): ?>
+            <div class="control-card">
+                <div class="control-card-title">
+                    <i class="fas fa-database"></i> Active Dataset
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+                    <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+                        <select id="datasetSelect" onchange="switchDataset()" style="padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px;">
+                            <?php foreach ($uploads as $u): ?>
+                            <option value="<?= $u['upload_id'] ?>" <?= ($active_upload_id == $u['upload_id']) ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($u['upload_name']) ?> (<?= $u['row_count'] ?> trees) <?= $u['is_active'] ? '[ACTIVE]' : '' ?>
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <button class="btn btn-outline btn-sm" onclick="setAsActive()"><i class="fas fa-star"></i> Set Active</button>
+                        <button class="btn btn-danger btn-sm" onclick="showDeleteModalForSelected()"><i class="fas fa-trash"></i> Delete</button>
+                        <?php if ($total_trees > 0): ?>
+                        <button class="btn btn-secondary btn-sm" onclick="window.location.href='print_all.php?upload_id=<?= $active_upload_id ?>'"><i class="fas fa-print"></i> Print All</button>
+                        <button class="btn btn-secondary btn-sm" onclick="window.location.href='export_excel.php?upload_id=<?= $active_upload_id ?>'"><i class="fas fa-file-excel"></i> Export</button>
+                        <?php endif; ?>
+                    </div>
+                    <div><strong><?= htmlspecialchars($selectedUploadName) ?></strong> (<?= $total_trees ?> records)</div>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <!-- Filter Bar -->
+            <div class="control-card">
+                <div class="control-card-title">
+                    <i class="fas fa-filter"></i> Filter Records
+                </div>
+                <form method="GET">
+                    <input type="hidden" name="upload_id" value="<?= $active_upload_id ?>">
+                    <div class="filter-bar">
+                        <div class="filter-group">
+                            <label>Tree ID</label>
+                            <input type="text" name="search_tree_id" placeholder="Enter Tree ID" value="<?= htmlspecialchars($search_tree_id) ?>">
+                        </div>
+                        <div class="filter-group">
+                            <label>Location</label>
+                            <input type="text" name="search_location" placeholder="Enter Location" value="<?= htmlspecialchars($search_location) ?>">
+                        </div>
+                        <div class="filter-group">
+                            <label>Status</label>
+                            <select name="filter_status">
+                                <option value="">All</option>
+                                <option value="completed" <?= $filter_status === 'completed' ? 'selected' : '' ?>>Completed</option>
+                                <option value="incomplete" <?= $filter_status === 'incomplete' ? 'selected' : '' ?>>Incomplete</option>
+                            </select>
+                        </div>
+                        <div class="filter-actions">
+                            <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Apply</button>
+                            <a href="?upload_id=<?= $active_upload_id ?>" class="btn btn-outline">Reset</a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Stats -->
+            <?php if ($total_trees > 0): 
+                $completedCount = 0;
+                foreach ($trees as $t) {
+                    if (!empty($t['prepared_by'])) $completedCount++;
+                }
+                $incompleteCount = $total_trees - $completedCount;
+            ?>
+            <div class="stats-bar">
+                <div class="stat-item"><span class="stat-label">Total Trees</span><span class="stat-value"><?= $total_trees ?></span></div>
+                <div class="stat-item"><span class="stat-label">Completed</span><span class="stat-value" style="color: #166534;"><?= $completedCount ?></span></div>
+                <div class="stat-item"><span class="stat-label">Incomplete</span><span class="stat-value" style="color: #92400e;"><?= $incompleteCount ?></span></div>
+                <div class="stat-item"><span class="stat-label">Showing</span><span class="stat-value"><?= $offset + 1 ?> - <?= min($offset + $items_per_page, $total_trees) ?></span></div>
+            </div>
+            <?php endif; ?>
+
+            <!-- Data Table -->
+            <div class="data-table-wrapper">
+                <?php if (empty($trees)): ?>
+                <div style="text-align: center; padding: 60px; color: #94a3b8;">No trees found. Upload data to get started.</div>
+                <?php else: ?>
+                
+                <!-- Desktop Table -->
+                <div class="desktop-table">
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>ID</th><th>Location</th><th>Height (m)</th><th>Crown Dia (m)</th><th>DBH (cm)</th><th>Biomass (kg)</th><th>Carbon (kg)</th><th>Status</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody>
+                        <?php foreach ($trees as $t): ?>
+                        <tr>
+                            <td><strong>#<?= $t['id'] ?></strong></td>
+                            <td><?= !empty($t['tree_location']) ? htmlspecialchars($t['tree_location']) : '—' ?></td>
+                            <td><?= round($t['tree_height'], 2) ?></td>
+                            <td><?= round($t['crown_diameter'], 2) ?></td>
+                            <td><?= round($t['dbh'], 2) ?></td>
+                            <td><?= round($t['total_tree_biomass'], 2) ?></td>
+                            <td><?= round($t['carbon_stock'], 2) ?></td>
+                            <td><?= !empty($t['prepared_by']) ? '<span class="status-badge status-completed"><i class="fas fa-check-circle"></i> Completed</span>' : '<span class="status-badge status-incomplete"><i class="fas fa-clock"></i> Incomplete</span>' ?></td>
+                            <td>
+                                <div style="display: flex; gap: 6px;">
+                                    <a href="inspect.php?tree_id=<?= $t['id'] ?>&upload_id=<?= $active_upload_id ?>" class="btn btn-primary btn-sm" style="padding: 4px 10px;"><?= $t['insp_id'] ? 'Edit' : 'Inspect' ?></a>
+                                    <?php if ($t['insp_id']): ?>
+                                    <a href="print.php?id=<?= $t['insp_id'] ?>" class="btn btn-outline btn-sm" style="padding: 4px 10px;" target="_blank">Print</a>
+                                    <?php endif; ?>
+                                </div>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Mobile Cards -->
+                <div class="mobile-cards">
+                    <?php foreach ($trees as $t): ?>
+                    <div class="tree-card">
+                        <div class="tree-card-header">
+                            <strong>Tree #<?= $t['id'] ?></strong>
+                            <?= !empty($t['prepared_by']) ? '<span class="status-badge status-completed">Completed</span>' : '<span class="status-badge status-incomplete">Incomplete</span>' ?>
+                        </div>
+                        <div class="tree-details">
+                            <div><small>Location:</small><br><?= !empty($t['tree_location']) ? htmlspecialchars($t['tree_location']) : '—' ?></div>
+                            <div><small>Height:</small><br><?= round($t['tree_height'], 2) ?> m</div>
+                            <div><small>Crown Dia:</small><br><?= round($t['crown_diameter'], 2) ?> m</div>
+                            <div><small>DBH:</small><br><?= round($t['dbh'], 2) ?> cm</div>
+                            <div><small>Biomass:</small><br><?= round($t['total_tree_biomass'], 2) ?> kg</div>
+                            <div><small>Carbon:</small><br><?= round($t['carbon_stock'], 2) ?> kg</div>
+                        </div>
+                        <div class="tree-actions">
+                            <a href="inspect.php?tree_id=<?= $t['id'] ?>&upload_id=<?= $active_upload_id ?>" class="btn btn-primary btn-sm"><?= $t['insp_id'] ? 'Edit' : 'Inspect' ?></a>
+                            <?php if ($t['insp_id']): ?>
+                            <a href="print.php?id=<?= $t['insp_id'] ?>" class="btn btn-outline btn-sm" target="_blank">Print</a>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+
+                <!-- Pagination -->
+                <?php if ($total_pages > 1): ?>
+                <div class="pagination-container">
+                    <div class="pagination">
+                        <?php if ($current_page > 1): ?>
+                            <a href="?<?= http_build_query(array_merge($_GET, ['page' => 1])) ?>">«</a>
+                            <a href="?<?= http_build_query(array_merge($_GET, ['page' => $current_page - 1])) ?>">‹</a>
+                        <?php else: ?>
+                            <span class="disabled">«</span>
+                            <span class="disabled">‹</span>
+                        <?php endif; ?>
+                        <?php
+                        $start_page = max(1, $current_page - 2);
+                        $end_page = min($total_pages, $current_page + 2);
+                        for ($i = $start_page; $i <= $end_page; $i++):
+                        ?>
+                            <?php if ($i == $current_page): ?>
+                                <span class="active"><?= $i ?></span>
+                            <?php else: ?>
+                                <a href="?<?= http_build_query(array_merge($_GET, ['page' => $i])) ?>"><?= $i ?></a>
+                            <?php endif; ?>
+                        <?php endfor; ?>
+                        <?php if ($current_page < $total_pages): ?>
+                            <a href="?<?= http_build_query(array_merge($_GET, ['page' => $current_page + 1])) ?>">›</a>
+                            <a href="?<?= http_build_query(array_merge($_GET, ['page' => $total_pages])) ?>">»</a>
+                        <?php else: ?>
+                            <span class="disabled">›</span>
+                            <span class="disabled">»</span>
+                        <?php endif; ?>
+                    </div>
+                    <div class="pagination-info">
+                        Page <?= $current_page ?> of <?= $total_pages ?>
+                    </div>
+                </div>
+                <?php endif; ?>
+                
+                <?php endif; ?>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Modal -->
 <div id="deleteModal" class="modal">
     <div class="modal-content">
         <h3>Confirm Delete</h3>
-        <p>Are you sure you want to delete dataset "<span id="deleteUploadName"></span>"?</p>
-        <p style="font-size:12px; color:#666;">This will remove all trees and inspections in this dataset.</p>
+        <p>Delete dataset "<span id="deleteUploadName"></span>"?</p>
         <div class="modal-buttons">
-            <button class="confirm-delete" onclick="confirmDelete()">Yes, Delete</button>
-            <button class="cancel-delete" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-danger" onclick="confirmDelete()">Delete</button>
+            <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
         </div>
     </div>
-</div>
-
-  <div class="topbar">
-    <h1>Tree Inspection System</h1>
-  </div>
-
-  <?php if ($msg === 'uploaded'): ?>
-  <div class="alert alert-success">
-    ✅ Excel uploaded successfully! <strong><?= (int)($_GET['count'] ?? 0) ?> trees</strong> imported.
-  </div>
-  <?php elseif ($msg === 'error'): ?>
-  <div class="alert alert-error">❌ Upload failed. Make sure the file is .xlsx or .csv with correct columns.</div>
-  <?php elseif ($deleted == 1): ?>
-  <div class="alert alert-success">🗑️ Dataset deleted successfully!</div>
-  <?php elseif (isset($error)): ?>
-  <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
-  <?php elseif ($msg === 'missing_name'): ?>
-    <div class="alert alert-error">❌ Upload failed. Please provide a name for the dataset.</div>
-  <?php endif; ?>
-
-  <!-- Upload Card -->
-<div class="card">
-  <h2>📤 Upload Tree Data</h2>
-  <form action="upload.php" method="POST" enctype="multipart/form-data">
-    <div class="field">
-      <label>Excel File (.xlsx or .csv)</label>
-      <input type="file" name="excel" accept=".xlsx,.csv" required>
-    </div>
-        <div class="field">
-        <label>Upload Name</label>
-        <input type="text" name="upload_name" placeholder="e.g., Site A - March 2024" required>
-    </div>
-    <div class="field">
-      <label>Description (optional)</label>
-      <input type="text" name="description" placeholder="Additional notes about this dataset">
-    </div>
-    
-    <!-- Separator line with gap -->
-    <div class="form-separator"></div>
-    
-    <!-- Checkbox and button row - checkbox on the right -->
-    <div class="upload-footer">
-        <label class="checkbox-label">
-        <span>Set as active dataset</span>
-        <input type="checkbox" name="set_active" value="1" checked>
-      </label>
-      <button type="submit" class="btn btn-green"> Upload &amp; Import</button>
-    </div>
-  </form>
-</div>
-
-
-
-<!-- Upload/Dataset Selector - Auto-switch version -->
-<?php if (!empty($uploads)): ?>
-<div class="upload-selector">
-    <strong>📊 Dataset Manager:</strong>
-    <form method="GET" class="selector-form" id="switchForm">
-      <select name="upload_id" id="datasetSelect" onchange="this.form.submit()">
-        <?php foreach ($uploads as $u): ?>
-        <option value="<?= $u['upload_id'] ?>" <?= ($active_upload_id == $u['upload_id']) ? 'selected' : '' ?>>
-          <?= htmlspecialchars($u['upload_name']) ?> 
-          (<?= $u['row_count'] ?> trees - <?= date('Y-m-d', strtotime($u['upload_date'])) ?>)
-          <?= $u['is_active'] ? '✓ ACTIVE' : '' ?>
-        </option>
-        <?php endforeach; ?>
-      </select>
-      <div class="selector-buttons">
-        <button type="button" class="set-active-btn" onclick="setAsActive()">Set as Active</button>
-        <button type="button" class="delete-btn" onclick="showDeleteModalForSelected()"> Delete Current Dataset</button>
-         <?php if ($active_upload_id && $total_trees > 0): ?>
-        <button type="button" class="btn-print-all" onclick="window.location.href='print_all.php?upload_id=<?= $active_upload_id ?>'">🖨️ Print All</button>
-        <button type="button" class="btn-export-excel" onclick="window.location.href='export_excel.php?upload_id=<?= $active_upload_id ?>'">📊 Export to Excel</button>
-        <?php endif; ?>
-      </div>
-    </form>
-</div>
-<?php endif; ?>
-
-<!-- Search & Filter Bar -->
-<div class="search-filter-bar">
-    <div class="search-filter-title">🔍 Search & Filter Trees</div>
-    <form method="GET" id="searchFilterForm">
-        <input type="hidden" name="upload_id" value="<?= $active_upload_id ?>">
-        <div class="search-filter-row">
-            <div class="field">
-                <label>Tree ID</label>
-                <input type="text" name="search_tree_id" placeholder="Enter Tree ID" value="<?= htmlspecialchars($search_tree_id) ?>">
-            </div>
-            <div class="field">
-                <label>Tree Location</label>
-                <input type="text" name="search_location" placeholder="Enter Location" value="<?= htmlspecialchars($search_location) ?>">
-            </div>
-            <div class="field">
-                <label>Status</label>
-                <select name="filter_status">
-                    <option value="">All</option>
-                    <option value="completed" <?= $filter_status === 'completed' ? 'selected' : '' ?>>Completed</option>
-                    <option value="incomplete" <?= $filter_status === 'incomplete' ? 'selected' : '' ?>>Incomplete</option>
-                </select>
-            </div>
-            <div class="search-filter-actions">
-                <button type="submit" class="btn-search">Apply</button>
-                <a href="?upload_id=<?= $active_upload_id ?>" class="btn-search-reset">Reset</a>
-            </div>
-        </div>
-    </form>
-</div>
-
-  <!-- Tree List -->
-  <div class="card tree-list">
-    <h2>
-      🌲 Trees (<?= $total_trees ?> total)
-      <?php if ($total_trees > 0): ?>
-      <span style="font-size: 12px; font-weight: normal;">Showing <?= $offset + 1 ?> - <?= min($offset + $items_per_page, $total_trees) ?> of <?= $total_trees ?></span>
-      <?php endif; ?>
-    </h2>
-    
-    <!-- Summary Stats -->
-    <?php if ($total_trees > 0): 
-        $completedCount = 0;
-        foreach ($trees as $t) {
-            if (!empty($t['prepared_by'])) $completedCount++;
-        }
-        $incompleteCount = $total_trees - $completedCount;
-    ?>
-    <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">
-        <span style="font-size: 13px;"><strong>Total Trees:</strong> <?= $total_trees ?></span>
-        <span style="font-size: 13px;"><strong>Completed:</strong> <?= $completedCount ?></span>
-        <span style="font-size: 13px;"><strong>Incomplete:</strong> <?= $incompleteCount ?></span>
-    </div>
-    <?php endif; ?>
-    
-    <?php if (empty($trees)): ?>
-      <p class="text-center text-muted mt-4">
-        No trees match your search criteria.
-      </p>
-    <?php else: ?>
-    
-    <!-- Desktop Table View -->
-    <div class="desktop-table">
-    <table>
-        <thead>
-            <tr>
-                <th>Tree ID</th>
-                <th>Location</th>
-                <th>Height (m)</th>
-                <th>Crown Dia (m)</th>
-                <th>DBH (cm)</th>
-                <th>Total Biomass (kg)</th>
-                <th>Carbon Stock (kg)</th>
-                <th>Status</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-        <?php foreach ($trees as $t): ?>
-        <tr>
-            <td><strong>#<?= htmlspecialchars($t['id']) ?></strong></td>
-            <td><?= !empty($t['tree_location']) ? htmlspecialchars($t['tree_location']) : '—' ?></td>
-            <td><?= round(htmlspecialchars($t['tree_height']), 2) ?></td>
-            <td><?= round(htmlspecialchars($t['crown_diameter']), 2) ?></td>
-            <td><?= round(htmlspecialchars($t['dbh']), 2) ?></td>
-            <td><?= round(htmlspecialchars($t['total_tree_biomass']), 2) ?></td>
-            <td><?= round(htmlspecialchars($t['carbon_stock']), 2) ?></td>
-            <td>
-              <?php if (!empty($t['prepared_by'])): ?>
-                <span class="badge-green">Completed</span>
-              <?php else: ?>
-                <span style="background:#fef3c7;color:#92400e;padding:4px 8px;border-radius:20px;font-size:11px;">Incomplete</span>
-              <?php endif; ?>
-            </td>
-            <td>
-              <div class="btn-row">
-                <a href="inspect.php?tree_id=<?= $t['id'] ?>&upload_id=<?= $active_upload_id ?>" class="btn btn-blue" style="padding:5px 12px;font-size:12px">
-                  <?= $t['insp_id'] ? 'Edit' : 'Fill' ?>
-                </a>
-                <?php if ($t['insp_id']): ?>
-                <a href="print.php?id=<?= $t['insp_id'] ?>" class="btn btn-gray" style="padding:5px 12px;font-size:12px" target="_blank">Print</a>
-                <?php endif; ?>
-              </div>
-            </td>
-        </tr>
-        <?php endforeach; ?>
-        </tbody>
-    </table>
-    </div>
-    
-    <!-- Mobile Card View -->
-    <div class="mobile-cards">
-  <?php foreach ($trees as $t): ?>
-  <div class="tree-card">
-    <div class="tree-card-header">
-      <span class="tree-id">🌲 Tree #<?= htmlspecialchars($t['id']) ?></span>
-      <?php if (!empty($t['prepared_by'])): ?>
-        <span class="tree-status status-complete">✓ Completed</span>
-      <?php else: ?>
-        <span class="tree-status status-incomplete">⏳ Incomplete</span>
-      <?php endif; ?>
-    </div>
-    
-    <div class="tree-details">
-      <div class="detail-item">
-        <span class="detail-label">Location</span>
-        <span class="detail-value"><?= !empty($t['tree_location']) ? htmlspecialchars($t['tree_location']) : '—' ?></span>
-      </div>
-      <div class="detail-item">
-        <span class="detail-label">Height</span>
-        <span class="detail-value"><?= round(htmlspecialchars($t['tree_height']), 2) ?> m</span>
-      </div>
-      <div class="detail-item">
-        <span class="detail-label">Crown Dia</span>
-        <span class="detail-value"><?= round(htmlspecialchars($t['crown_diameter']), 2) ?> m</span>
-      </div>
-      <div class="detail-item">
-        <span class="detail-label">DBH</span>
-        <span class="detail-value"><?= round(htmlspecialchars($t['dbh']), 2) ?> cm</span>
-      </div>
-      <div class="detail-item">
-        <span class="detail-label">Biomass</span>
-        <span class="detail-value"><?= round(htmlspecialchars($t['total_tree_biomass']), 2) ?> kg</span>
-      </div>
-      <div class="detail-item">
-        <span class="detail-label">Carbon Stock</span>
-        <span class="detail-value"><?= round(htmlspecialchars($t['carbon_stock']), 2) ?> kg</span>
-      </div>
-    </div>
-    
-    <div class="tree-actions">
-      <a href="inspect.php?tree_id=<?= $t['id'] ?>&upload_id=<?= $active_upload_id ?>" class="btn btn-blue">
-        <?= $t['insp_id'] ? 'Edit Form' : 'Fill Form' ?>
-      </a>
-      <?php if ($t['insp_id']): ?>
-      <a href="print.php?id=<?= $t['insp_id'] ?>" class="btn btn-gray" target="_blank">Print</a>
-      <?php endif; ?>
-    </div>
-  </div>
-  <?php endforeach; ?>
-    </div>
-    
-    <!-- Pagination -->
-    <?php if ($total_pages > 1): ?>
-    <div class="pagination">
-      <?php if ($current_page > 1): ?>
-        <a href="?<?= http_build_query(array_merge($_GET, ['page' => 1])) ?>">« First</a>
-        <a href="?<?= http_build_query(array_merge($_GET, ['page' => $current_page - 1])) ?>">‹ Previous</a>
-      <?php else: ?>
-        <span class="disabled">« First</span>
-        <span class="disabled">‹ Previous</span>
-      <?php endif; ?>
-      
-      <?php
-      $start_page = max(1, $current_page - 2);
-      $end_page = min($total_pages, $current_page + 2);
-      
-      for ($i = $start_page; $i <= $end_page; $i++):
-      ?>
-        <?php if ($i == $current_page): ?>
-          <span class="active"><?= $i ?></span>
-        <?php else: ?>
-          <a href="?<?= http_build_query(array_merge($_GET, ['page' => $i])) ?>"><?= $i ?></a>
-        <?php endif; ?>
-      <?php endfor; ?>
-      
-      <?php if ($current_page < $total_pages): ?>
-        <a href="?<?= http_build_query(array_merge($_GET, ['page' => $current_page + 1])) ?>">Next ›</a>
-        <a href="?<?= http_build_query(array_merge($_GET, ['page' => $total_pages])) ?>">Last »</a>
-      <?php else: ?>
-        <span class="disabled">Next ›</span>
-        <span class="disabled">Last »</span>
-      <?php endif; ?>
-    </div>
-    
-    <div class="pagination-info">
-      <div class="page-jump">
-        <span>Go to page:</span>
-        <input type="number" id="pageInput" min="1" max="<?= $total_pages ?>" value="<?= $current_page ?>">
-        <button onclick="goToPage()">Go</button>
-      </div>
-    </div>
-    <?php endif; ?>
-    
-    <?php endif; ?>
-  </div>
 </div>
 
 <script>
 let deleteId = null;
-let deleteName = '';
 
-function showDeleteModal(uploadId, uploadName) {
-    deleteId = uploadId;
-    document.getElementById('deleteUploadName').innerText = uploadName;
-    document.getElementById('deleteModal').style.display = 'flex';
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
 }
 
-function closeModal() {
-    document.getElementById('deleteModal').style.display = 'none';
-    deleteId = null;
+function switchDataset() {
+    let select = document.getElementById('datasetSelect');
+    window.location.href = '?upload_id=' + select.value;
 }
 
-function confirmDelete() {
-    if (deleteId) {
-        window.location.href = 'index.php?delete_upload=' + deleteId;
-    }
-}
-
-function goToPage() {
-    let page = document.getElementById('pageInput').value;
-    let maxPage = <?= $total_pages ?>;
-    let uploadId = '<?= $active_upload_id ?>';
-    let searchTreeId = '<?= htmlspecialchars($search_tree_id) ?>';
-    let searchLocation = '<?= htmlspecialchars($search_location) ?>';
-    let filterStatus = '<?= htmlspecialchars($filter_status) ?>';
-    
-    if (page >= 1 && page <= maxPage) {
-        window.location.href = '?upload_id=' + uploadId + '&search_tree_id=' + encodeURIComponent(searchTreeId) + '&search_location=' + encodeURIComponent(searchLocation) + '&filter_status=' + encodeURIComponent(filterStatus) + '&page=' + page;
-    } else {
-        alert('Please enter a valid page number between 1 and ' + maxPage);
-    }
-}
-
-window.onclick = function(event) {
-    const modal = document.getElementById('deleteModal');
-    if (event.target === modal) {
-        closeModal();
-    }
-}
 function setAsActive() {
     let select = document.getElementById('datasetSelect');
     let uploadId = select.value;
-    
     fetch('set_active.php', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'upload_id=' + uploadId
     })
     .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert('Error: ' + data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Failed to set as active');
-    });
+    .then(data => { if (data.success) location.reload(); else alert('Error'); })
+    .catch(error => alert('Failed'));
 }
 
 function showDeleteModalForSelected() {
     let select = document.getElementById('datasetSelect');
     deleteId = select.value;
-    let selectedOption = select.options[select.selectedIndex];
-    deleteName = selectedOption.text.split(' (')[0];
-    
-    document.getElementById('deleteUploadName').innerText = deleteName;
+    let option = select.options[select.selectedIndex];
+    document.getElementById('deleteUploadName').innerText = option.text.split(' (')[0];
     document.getElementById('deleteModal').style.display = 'flex';
 }
 
@@ -1215,15 +1068,6 @@ function confirmDelete() {
         window.location.href = 'index.php?delete_upload=' + deleteId;
     }
 }
-
-window.onclick = function(event) {
-    const modal = document.getElementById('deleteModal');
-    if (event.target === modal) {
-        closeModal();
-    }
-}
-
 </script>
-
 </body>
 </html>
