@@ -721,6 +721,130 @@ $deleted = $_GET['deleted'] ?? '';
             cursor: pointer;
             color: #475569;
         }
+    /* Mobile Sidebar Styles */
+@media (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease-in-out;
+        width: 280px;
+        z-index: 1000;
+    }
+    
+    .sidebar.open {
+        transform: translateX(0);
+    }
+    
+    .main-content {
+        margin-left: 0;
+    }
+    
+    /* Overlay when sidebar is open */
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+    }
+    
+    .sidebar-overlay.active {
+        display: block;
+    }
+    
+    .content-area {
+        padding: 16px;
+    }
+    
+    .top-bar {
+        padding: 12px 16px;
+    }
+    
+    .menu-toggle {
+        display: block;
+        background: none;
+        border: none;
+        font-size: 20px;
+        cursor: pointer;
+        color: #475569;
+    }
+    
+    .filter-bar {
+        flex-direction: column;
+    }
+    
+    .filter-actions {
+        flex-direction: column;
+    }
+    
+    .filter-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .stats-bar {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    
+    .mobile-cards {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .desktop-table {
+        display: none;
+    }
+    
+    .tree-card {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 14px;
+    }
+    
+    .tree-card-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .tree-details {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+    
+    .tree-actions {
+        display: flex;
+        gap: 8px;
+    }
+    
+    .tree-actions .btn {
+        flex: 1;
+        justify-content: center;
+    }
+}
+
+    @media (min-width: 769px) {
+        .mobile-cards {
+        display: none;
+        }
+    
+        .desktop-table {
+        display: block;
+        }
+    
+        .menu-toggle {
+        display: none;
+        }
+    }
     </style>
 </head>
 <body>
@@ -768,21 +892,24 @@ $deleted = $_GET['deleted'] ?? '';
             </div>
         </div>
     </aside>
-
+    <!-- Sidebar Overlay for mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
     <!-- Main Content -->
     <main class="main-content">
         <div class="top-bar">
-            <div style="display: flex; align-items: center; gap: 16px;">
-                <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()">☰</button>
-                <div class="page-title">
-                    <h1>Tree Inventory</h1>
-                    <p>Manage and inspect tree assets</p>
-                </div>
-            </div>
-            <div>
-                <i class="fas fa-search" style="color: #94a3b8; cursor: pointer;"></i>
-            </div>
+    <div style="display: flex; align-items: center; gap: 16px;">
+        <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()">
+            <i class="fas fa-bars"></i>
+        </button>
+        <div class="page-title">
+            <h1>Tree Inventory</h1>
+            <p>Manage and inspect tree assets</p>
         </div>
+    </div>
+    <div>
+        <i class="fas fa-search" style="color: #94a3b8; cursor: pointer;"></i>
+    </div>
+</div>
 
         <div class="content-area">
             <!-- Alerts -->
@@ -1029,7 +1156,17 @@ $deleted = $_GET['deleted'] ?? '';
 let deleteId = null;
 
 function toggleSidebar() {
-    document.getElementById('sidebar').classList.toggle('open');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('active');
+}
+
+function closeSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    sidebar.classList.remove('open');
+    overlay.classList.remove('active');
 }
 
 function switchDataset() {
@@ -1068,6 +1205,14 @@ function confirmDelete() {
         window.location.href = 'index.php?delete_upload=' + deleteId;
     }
 }
+
+// Close sidebar when clicking outside (handled by overlay)
+// Also close sidebar when window is resized to desktop size
+window.addEventListener('resize', function() {
+    if (window.innerWidth > 768) {
+        closeSidebar();
+    }
+});
 </script>
 </body>
 </html>
