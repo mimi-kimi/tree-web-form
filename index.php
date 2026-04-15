@@ -34,31 +34,71 @@ if (!$active_upload_id && !empty($uploads)) {
     $active_upload_id = $activeUpload ? $activeUpload['upload_id'] : ($uploads[0]['upload_id'] ?? null);
 }
 
-// Get total count for pagination
+// SEARCH & FILTER PARAMETERS
+$search_tree_id = isset($_GET['search_tree_id']) ? trim($_GET['search_tree_id']) : '';
+$search_location = isset($_GET['search_location']) ? trim($_GET['search_location']) : '';
+$filter_status = isset($_GET['filter_status']) ? $_GET['filter_status'] : '';
+
+// Build WHERE conditions for search
+$whereConditions = ["t.upload_id = ?"];
+$params = [$active_upload_id];
+
+if ($search_tree_id !== '') {
+    $whereConditions[] = "t.id LIKE ?";
+    $params[] = "%$search_tree_id%";
+}
+
+if ($search_location !== '') {
+    $whereConditions[] = "i.tree_location LIKE ?";
+    $params[] = "%$search_location%";
+}
+if ($filter_status !== '') {
+    if ($filter_status === 'completed') {
+        $whereConditions[] = "i.prepared_by IS NOT NULL AND i.prepared_by != ''";
+    } elseif ($filter_status === 'incomplete') {
+        $whereConditions[] = "(i.prepared_by IS NULL OR i.prepared_by = '')";
+    }
+}
+
+$whereClause = implode(' AND ', $whereConditions);
+
+// Get total count with filters
 $total_trees = 0;
 $trees = [];
 $selectedUploadName = '';
 if ($active_upload_id) {
-    // Get total count
-    $countStmt = $pdo->prepare('SELECT COUNT(*) FROM trees WHERE upload_id = ?');
-    $countStmt->execute([$active_upload_id]);
-    $total_trees = $countStmt->fetchColumn();
-    
-    // Get trees with pagination
-    $stmt = $pdo->prepare('
-        SELECT 
-            t.*, 
-            i.insp_id, 
-            i.prepared_by
+    // Get total count with filters
+    $countSql = "
+        SELECT COUNT(*) 
         FROM trees t 
         LEFT JOIN inspections i ON i.tree_id = t.id AND i.upload_id = t.upload_id
-        WHERE t.upload_id = ?
-        ORDER BY t.id ASC
-        LIMIT ? OFFSET ?
-    ');
-    $stmt->bindValue(1, $active_upload_id, PDO::PARAM_INT);
-    $stmt->bindValue(2, $items_per_page, PDO::PARAM_INT);
-    $stmt->bindValue(3, $offset, PDO::PARAM_INT);
+        WHERE $whereClause
+    ";
+    $countStmt = $pdo->prepare($countSql);
+    $countStmt->execute($params);
+    $total_trees = $countStmt->fetchColumn();
+    
+    // Get trees with pagination and filters
+    $sql = "
+    SELECT 
+        t.*, 
+        i.insp_id, 
+        i.prepared_by,
+        i.tree_location
+    FROM trees t 
+    LEFT JOIN inspections i ON i.tree_id = t.id AND i.upload_id = t.upload_id
+    WHERE $whereClause
+    ORDER BY t.id ASC
+    LIMIT ? OFFSET ?
+";
+    $stmt = $pdo->prepare($sql);
+    
+    // Bind parameters
+    foreach ($params as $idx => $val) {
+        $stmt->bindValue($idx + 1, $val, PDO::PARAM_STR);
+    }
+    $stmt->bindValue(count($params) + 1, $items_per_page, PDO::PARAM_INT);
+    $stmt->bindValue(count($params) + 2, $offset, PDO::PARAM_INT);
     $stmt->execute();
     $trees = $stmt->fetchAll();
     
@@ -427,6 +467,82 @@ $deleted = $_GET['deleted'] ?? '';
         margin-top: 8px;
     }
     
+    /* Search Filter Bar Styles */
+    .search-filter-bar {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 20px;
+    }
+    
+    .search-filter-title {
+        font-weight: 600;
+        color: #1e293b;
+        font-size: 14px;
+        margin-bottom: 12px;
+    }
+    
+    .search-filter-row {
+        display: flex;
+        gap: 15px;
+        align-items: flex-end;
+        flex-wrap: wrap;
+    }
+    
+    .search-filter-row .field {
+        flex: 1;
+        margin-bottom: 0;
+        min-width: 150px;
+    }
+    
+    .search-filter-actions {
+        display: flex;
+        gap: 10px;
+        flex-shrink: 0;
+    }
+    
+    .btn-search {
+        background: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+    }
+    
+    .btn-search-reset {
+        background: #64748b;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-block;
+        text-align: center;
+    }
+    
+    @media (max-width: 640px) {
+        .search-filter-row {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .search-filter-actions {
+            flex-direction: column;
+        }
+        
+        .btn-search, .btn-search-reset {
+            width: 100%;
+            text-align: center;
+        }
+    }
+    
     /* Pagination Styles */
     .pagination {
         display: flex;
@@ -776,6 +892,9 @@ $deleted = $_GET['deleted'] ?? '';
     </div>
   </form>
 </div>
+
+
+
 <!-- Upload/Dataset Selector - Auto-switch version -->
 <?php if (!empty($uploads)): ?>
 <div class="upload-selector">
@@ -801,6 +920,36 @@ $deleted = $_GET['deleted'] ?? '';
     </form>
 </div>
 <?php endif; ?>
+
+<!-- Search & Filter Bar -->
+<div class="search-filter-bar">
+    <div class="search-filter-title">🔍 Search & Filter Trees</div>
+    <form method="GET" id="searchFilterForm">
+        <input type="hidden" name="upload_id" value="<?= $active_upload_id ?>">
+        <div class="search-filter-row">
+            <div class="field">
+                <label>Tree ID</label>
+                <input type="text" name="search_tree_id" placeholder="Enter Tree ID" value="<?= htmlspecialchars($search_tree_id) ?>">
+            </div>
+            <div class="field">
+                <label>Tree Location</label>
+                <input type="text" name="search_location" placeholder="Enter Location" value="<?= htmlspecialchars($search_location) ?>">
+            </div>
+            <div class="field">
+                <label>Status</label>
+                <select name="filter_status">
+                    <option value="">All</option>
+                    <option value="completed" <?= $filter_status === 'completed' ? 'selected' : '' ?>>Completed</option>
+                    <option value="incomplete" <?= $filter_status === 'incomplete' ? 'selected' : '' ?>>Incomplete</option>
+                </select>
+            </div>
+            <div class="search-filter-actions">
+                <button type="submit" class="btn-search">Apply</button>
+                <a href="?upload_id=<?= $active_upload_id ?>" class="btn-search-reset">Reset</a>
+            </div>
+        </div>
+    </form>
+</div>
 
   <!-- Tree List -->
   <div class="card tree-list">
@@ -828,29 +977,31 @@ $deleted = $_GET['deleted'] ?? '';
     
     <?php if (empty($trees)): ?>
       <p class="text-center text-muted mt-4">
-        No trees in this dataset. Upload an Excel file to get started.
+        No trees match your search criteria.
       </p>
     <?php else: ?>
     
     <!-- Desktop Table View -->
     <div class="desktop-table">
-      <table>
+    <table>
         <thead>
-          <tr>
-            <th>Tree ID</th>
-            <th>Height (m)</th>
-            <th>Crown Dia (m)</th>
-            <th>DBH (cm)</th>
-            <th>Total Biomass (kg)</th>
-            <th>Carbon Stock (kg)</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
+            <tr>
+                <th>Tree ID</th>
+                <th>Location</th>
+                <th>Height (m)</th>
+                <th>Crown Dia (m)</th>
+                <th>DBH (cm)</th>
+                <th>Total Biomass (kg)</th>
+                <th>Carbon Stock (kg)</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
         </thead>
         <tbody>
         <?php foreach ($trees as $t): ?>
-          <tr>
+        <tr>
             <td><strong>#<?= htmlspecialchars($t['id']) ?></strong></td>
+            <td><?= !empty($t['tree_location']) ? htmlspecialchars($t['tree_location']) : '—' ?></td>
             <td><?= round(htmlspecialchars($t['tree_height']), 2) ?></td>
             <td><?= round(htmlspecialchars($t['crown_diameter']), 2) ?></td>
             <td><?= round(htmlspecialchars($t['dbh']), 2) ?></td>
@@ -873,68 +1024,70 @@ $deleted = $_GET['deleted'] ?? '';
                 <?php endif; ?>
               </div>
             </td>
-          </tr>
+        </tr>
         <?php endforeach; ?>
         </tbody>
-      </table>
+    </table>
     </div>
     
     <!-- Mobile Card View -->
     <div class="mobile-cards">
-      <?php foreach ($trees as $t): ?>
-      <div class="tree-card">
-        <div class="tree-card-header">
-          <span class="tree-id">🌲 Tree #<?= htmlspecialchars($t['id']) ?></span>
-          <?php if (!empty($t['prepared_by'])): ?>
-            <span class="tree-status status-complete">✓ Completed</span>
-          <?php else: ?>
-            <span class="tree-status status-incomplete">⏳ Incomplete</span>
-          <?php endif; ?>
-        </div>
-        
-        <div class="tree-details">
-          <div class="detail-item">
-            <span class="detail-label">Height</span>
-            <span class="detail-value"><?= round(htmlspecialchars($t['tree_height']), 2) ?> m</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">Crown Dia</span>
-            <span class="detail-value"><?= round(htmlspecialchars($t['crown_diameter']), 2) ?> m</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">DBH</span>
-            <span class="detail-value"><?= round(htmlspecialchars($t['dbh']), 2) ?> cm</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">Biomass</span>
-            <span class="detail-value"><?= round(htmlspecialchars($t['total_tree_biomass']), 2) ?> kg</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">Carbon Stock</span>
-            <span class="detail-value"><?= round(htmlspecialchars($t['carbon_stock']), 2) ?> kg</span>
-          </div>
-        </div>
-        
-        <div class="tree-actions">
-          <a href="inspect.php?tree_id=<?= $t['id'] ?>&upload_id=<?= $active_upload_id ?>" class="btn btn-blue">
-            <?= $t['insp_id'] ? 'Edit Form' : 'Fill Form' ?>
-          </a>
-          <?php if ($t['insp_id']): ?>
-          <a href="print.php?id=<?= $t['insp_id'] ?>" class="btn btn-gray" target="_blank">
-             Print
-          </a>
-          <?php endif; ?>
-        </div>
+  <?php foreach ($trees as $t): ?>
+  <div class="tree-card">
+    <div class="tree-card-header">
+      <span class="tree-id">🌲 Tree #<?= htmlspecialchars($t['id']) ?></span>
+      <?php if (!empty($t['prepared_by'])): ?>
+        <span class="tree-status status-complete">✓ Completed</span>
+      <?php else: ?>
+        <span class="tree-status status-incomplete">⏳ Incomplete</span>
+      <?php endif; ?>
+    </div>
+    
+    <div class="tree-details">
+      <div class="detail-item">
+        <span class="detail-label">Location</span>
+        <span class="detail-value"><?= !empty($t['tree_location']) ? htmlspecialchars($t['tree_location']) : '—' ?></span>
       </div>
-      <?php endforeach; ?>
+      <div class="detail-item">
+        <span class="detail-label">Height</span>
+        <span class="detail-value"><?= round(htmlspecialchars($t['tree_height']), 2) ?> m</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Crown Dia</span>
+        <span class="detail-value"><?= round(htmlspecialchars($t['crown_diameter']), 2) ?> m</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">DBH</span>
+        <span class="detail-value"><?= round(htmlspecialchars($t['dbh']), 2) ?> cm</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Biomass</span>
+        <span class="detail-value"><?= round(htmlspecialchars($t['total_tree_biomass']), 2) ?> kg</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Carbon Stock</span>
+        <span class="detail-value"><?= round(htmlspecialchars($t['carbon_stock']), 2) ?> kg</span>
+      </div>
+    </div>
+    
+    <div class="tree-actions">
+      <a href="inspect.php?tree_id=<?= $t['id'] ?>&upload_id=<?= $active_upload_id ?>" class="btn btn-blue">
+        <?= $t['insp_id'] ? 'Edit Form' : 'Fill Form' ?>
+      </a>
+      <?php if ($t['insp_id']): ?>
+      <a href="print.php?id=<?= $t['insp_id'] ?>" class="btn btn-gray" target="_blank">Print</a>
+      <?php endif; ?>
+    </div>
+  </div>
+  <?php endforeach; ?>
     </div>
     
     <!-- Pagination -->
     <?php if ($total_pages > 1): ?>
     <div class="pagination">
       <?php if ($current_page > 1): ?>
-        <a href="?upload_id=<?= $active_upload_id ?>&page=1">« First</a>
-        <a href="?upload_id=<?= $active_upload_id ?>&page=<?= $current_page - 1 ?>">‹ Previous</a>
+        <a href="?<?= http_build_query(array_merge($_GET, ['page' => 1])) ?>">« First</a>
+        <a href="?<?= http_build_query(array_merge($_GET, ['page' => $current_page - 1])) ?>">‹ Previous</a>
       <?php else: ?>
         <span class="disabled">« First</span>
         <span class="disabled">‹ Previous</span>
@@ -949,13 +1102,13 @@ $deleted = $_GET['deleted'] ?? '';
         <?php if ($i == $current_page): ?>
           <span class="active"><?= $i ?></span>
         <?php else: ?>
-          <a href="?upload_id=<?= $active_upload_id ?>&page=<?= $i ?>"><?= $i ?></a>
+          <a href="?<?= http_build_query(array_merge($_GET, ['page' => $i])) ?>"><?= $i ?></a>
         <?php endif; ?>
       <?php endfor; ?>
       
       <?php if ($current_page < $total_pages): ?>
-        <a href="?upload_id=<?= $active_upload_id ?>&page=<?= $current_page + 1 ?>">Next ›</a>
-        <a href="?upload_id=<?= $active_upload_id ?>&page=<?= $total_pages ?>">Last »</a>
+        <a href="?<?= http_build_query(array_merge($_GET, ['page' => $current_page + 1])) ?>">Next ›</a>
+        <a href="?<?= http_build_query(array_merge($_GET, ['page' => $total_pages])) ?>">Last »</a>
       <?php else: ?>
         <span class="disabled">Next ›</span>
         <span class="disabled">Last »</span>
@@ -999,8 +1152,13 @@ function confirmDelete() {
 function goToPage() {
     let page = document.getElementById('pageInput').value;
     let maxPage = <?= $total_pages ?>;
+    let uploadId = '<?= $active_upload_id ?>';
+    let searchTreeId = '<?= htmlspecialchars($search_tree_id) ?>';
+    let searchLocation = '<?= htmlspecialchars($search_location) ?>';
+    let filterStatus = '<?= htmlspecialchars($filter_status) ?>';
+    
     if (page >= 1 && page <= maxPage) {
-        window.location.href = '?upload_id=<?= $active_upload_id ?>&page=' + page;
+        window.location.href = '?upload_id=' + uploadId + '&search_tree_id=' + encodeURIComponent(searchTreeId) + '&search_location=' + encodeURIComponent(searchLocation) + '&filter_status=' + encodeURIComponent(filterStatus) + '&page=' + page;
     } else {
         alert('Please enter a valid page number between 1 and ' + maxPage);
     }
@@ -1055,17 +1213,6 @@ function closeModal() {
 function confirmDelete() {
     if (deleteId) {
         window.location.href = 'index.php?delete_upload=' + deleteId;
-    }
-}
-
-function goToPage() {
-    let page = document.getElementById('pageInput').value;
-    let maxPage = <?= $total_pages ?? 1 ?>;
-    let uploadId = document.getElementById('datasetSelect')?.value || <?= $active_upload_id ?? 0 ?>;
-    if (page >= 1 && page <= maxPage) {
-        window.location.href = '?upload_id=' + uploadId + '&page=' + page;
-    } else {
-        alert('Please enter a valid page number between 1 and ' + maxPage);
     }
 }
 
