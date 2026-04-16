@@ -11,9 +11,9 @@ if (!$d) { echo 'Inspection not found.'; exit; }
 
 // Get tree data for this inspection to get original measurements
 $treeData = null;
-if (!empty($d['tree_id']) && !empty($d['upload_id'])) {
+if (!empty($d['tree_no']) && !empty($d['upload_id'])) {
     $treeStmt = db()->prepare('SELECT * FROM trees WHERE id = ? AND upload_id = ?');
-    $treeStmt->execute([$d['tree_id'], $d['upload_id']]);
+    $treeStmt->execute([$d['tree_no'], $d['upload_id']]);
     $treeData = $treeStmt->fetch();
 }
 
@@ -36,7 +36,7 @@ function formatMeasurement($value, $unit, $default = '______') {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Tree Inspection Form — Tree #<?= val($d,'tree_id') ?></title>
+  <title>Tree Inspection Form — Tree #<?= val($d,'tree_no') ?></title>
   <style>
     * { box-sizing:border-box; margin:0; padding:0; }
     body { font-family: Arial, sans-serif; font-size:10px; background:#fff; color:#000; line-height:1.3; }
@@ -142,53 +142,48 @@ function formatMeasurement($value, $unit, $default = '______') {
     .name-line {
       margin-top: 20px;
     }
-    /* Notes section - prevents overflow */
-.notes-section {
-    margin: 8px 0;
-    page-break-inside: avoid;
-}
-
-.notes-label {
-    font-weight: bold;
-    font-size: 10px;
-    margin-bottom: 4px;
-}
-
-.notes-content {
-    border: 1px solid #ccc;
-    padding: 10px;
-    min-height: 80px;
-    font-size: 9px;
-    line-height: 1.4;
-    word-wrap: break-word;
-    word-break: break-word;
-    white-space: normal;
-    background: #fafafa;
-    border-radius: 4px;
-}
-
-/* For long text without spaces */
-.notes-content {
-    overflow-wrap: break-word;
-    hyphens: auto;
-}
-
-/* Print-specific notes styling */
-@media print {
+    
+    .notes-section {
+      margin: 8px 0;
+      page-break-inside: avoid;
+    }
+    
+    .notes-label {
+      font-weight: bold;
+      font-size: 10px;
+      margin-bottom: 4px;
+    }
+    
     .notes-content {
+      border: 1px solid #ccc;
+      padding: 10px;
+      min-height: 80px;
+      font-size: 9px;
+      line-height: 1.4;
+      word-wrap: break-word;
+      word-break: break-word;
+      white-space: normal;
+      background: #fafafa;
+      border-radius: 4px;
+    }
+    
+    .notes-content {
+      overflow-wrap: break-word;
+      hyphens: auto;
+    }
+
+    @media print {
+      .no-print { display:none !important; }
+      body { font-size:9px; }
+      @page { size:A4; margin:8mm; }
+      .notes-content {
         border: 1px solid #aaa;
         min-height: 60px;
         padding: 8px;
         background: white;
         page-break-inside: avoid;
         break-inside: avoid;
-    }
-}
-
-    @media print {
-      .no-print { display:none !important; }
-      body { font-size:9px; }
-      @page { size:A4; margin:8mm; }
+      }
     }
   </style>
 </head>
@@ -196,7 +191,7 @@ function formatMeasurement($value, $unit, $default = '______') {
 
 <div class="no-print">
   <button onclick="window.print()">Print / Save as PDF</button>
-  <a href="inspect.php?tree_id=<?= val($d,'tree_id') ?>&upload_id=<?= val($d,'upload_id') ?>">← Back to Edit</a>
+  <a href="inspect.php?tree_no=<?= val($d,'tree_no') ?>&upload_id=<?= val($d,'upload_id') ?>">← Back to Edit</a>
   <a href="index.php">Home</a>
 </div>
 
@@ -209,8 +204,8 @@ function formatMeasurement($value, $unit, $default = '______') {
   <div class="row">
     <span class="lbl">CLIENT:</span>
     <span class="val val-lg"><?= val($d,'client') ?></span>
-    <span class="lbl">CLIENT ADDRESS:</span>
-    <span class="val val-xl"><?= val($d,'client_address') ?></span>
+    <span class="lbl">TREE ID:</span>
+    <span class="val val-lg"><?= val($d, 'tree_id') ?></span>
   </div>
   <div class="row">
     <span class="lbl">TREE LOCATION:</span>
@@ -278,9 +273,9 @@ function formatMeasurement($value, $unit, $default = '______') {
     <span class="inline">NONE <?= box($d,'foliage_none') ?></span>
     <span class="inline">NORMAL <?= box($d,'foliage_normal') ?></span>
     <span class="inline">CHLOROTIC <?= box($d,'foliage_chlorotic') ?></span>
-    <?php if (!empty($d['foliage_chlorotic_pct'])): ?>% <?= val($d,'foliage_chlorotic_pct') ?><?php endif; ?>
+    <?php if (!empty($d['foliage_chlorotic_pct'])): ?> <?= val($d,'foliage_chlorotic_pct') ?>%<?php endif; ?>
     <span class="inline" style="margin-left:5px">NECROTIC <?= box($d,'foliage_necrotic') ?></span>
-    <?php if (!empty($d['foliage_necrotic_pct'])): ?>% <?= val($d,'foliage_necrotic_pct') ?><?php endif; ?>
+    <?php if (!empty($d['foliage_necrotic_pct'])): ?> <?= val($d,'foliage_necrotic_pct') ?>%<?php endif; ?>
   </div>
   <div class="row">
     <span class="lbl">SPECIES FAILURE PROFILE:</span>
@@ -364,7 +359,6 @@ function formatMeasurement($value, $unit, $default = '______') {
         'codominant'              => 'CODOMINANT',
         'included_bark_crown'     => 'INCLUDED BARK',
         'weak_attachment'         => 'WEAK ATTACHMENT',
-        'cavity_crown'            => 'CAVITY/NEST HOLE',
         'prev_branch_fail'        => 'PREVIOUS BRANCH FAILURES',
         'dead_missing_bark_crown' => 'DEAD/MISSING BARK',
         'cankers_crown'           => 'CANKERS/GALLS/BURLS',
@@ -377,11 +371,16 @@ function formatMeasurement($value, $unit, $default = '______') {
       <?= $lbl ?>: 
       <span class="yn-pair">YES <?= ynBox($d,$k,'YES') ?></span>
       <span class="yn-pair">NO <?= ynBox($d,$k,'NO') ?></span>
-      <?php if ($k === 'cavity_crown' && !empty($d['cavity_crown_pct'])): ?>
+    </div>
+    <?php endforeach; ?>
+    <div class="row">
+      CAVITY/NEST HOLE: 
+      <span class="yn-pair">YES <?= ynBox($d,'cavity_crown','YES') ?></span>
+      <span class="yn-pair">NO <?= ynBox($d,'cavity_crown','NO') ?></span>
+      <?php if (!empty($d['cavity_crown_pct'])): ?>
       <span>% CIRC. <?= val($d,'cavity_crown_pct') ?></span>
       <?php endif; ?>
     </div>
-    <?php endforeach; ?>
   </div>
 
   <!-- Trunk Defects -->
@@ -400,7 +399,6 @@ function formatMeasurement($value, $unit, $default = '______') {
         'lightning_trunk'     => 'LIGHTNING DAMAGE',
         'heartwood_trunk'     => 'HEARTWOOD DECAY',
         'conks_trunk'         => 'CONKS',
-        'cavity_trunk'        => 'CAVITY/NEST HOLE',
         'lean'                => 'LEAN',
         'response_growth'     => 'RESPONSE GROWTH',
     ];
@@ -409,11 +407,16 @@ function formatMeasurement($value, $unit, $default = '______') {
       <?= $lbl ?>: 
       <span class="yn-pair">YES <?= ynBox($d,$k,'YES') ?></span>
       <span class="yn-pair">NO <?= ynBox($d,$k,'NO') ?></span>
-      <?php if ($k === 'cavity_trunk' && !empty($d['cavity_trunk_pct'])): ?>
+    </div>
+    <?php endforeach; ?>
+    <div class="row">
+      CAVITY/NEST HOLE: 
+      <span class="yn-pair">YES <?= ynBox($d,'cavity_trunk','YES') ?></span>
+      <span class="yn-pair">NO <?= ynBox($d,'cavity_trunk','NO') ?></span>
+      <?php if (!empty($d['cavity_trunk_pct'])): ?>
       <span>% CIRC. <?= val($d,'cavity_trunk_pct') ?></span>
       <?php endif; ?>
     </div>
-    <?php endforeach; ?>
   </div>
   <?php if (!empty($d['trunk_other'])): ?>
   <div class="row">
@@ -442,7 +445,6 @@ function formatMeasurement($value, $unit, $default = '______') {
         'root_conks'         => 'CONKS',
         'root_ooze'          => 'OOZE',
         'root_cracks'        => 'CRACKS',
-        'cavity_root'        => 'CAVITY/NEST HOLE',
         'cut_damage_roots'   => 'CUT/DAMAGE ROOTS',
         'root_plate_lifting' => 'ROOT PLATE LIFTING',
         'soil_weakness'      => 'SOIL WEAKNESS',
@@ -453,11 +455,16 @@ function formatMeasurement($value, $unit, $default = '______') {
       <?= $lbl ?>: 
       <span class="yn-pair">YES <?= ynBox($d,$k,'YES') ?></span>
       <span class="yn-pair">NO <?= ynBox($d,$k,'NO') ?></span>
-      <?php if ($k === 'cavity_root' && !empty($d['cavity_root_pct'])): ?>
+    </div>
+    <?php endforeach; ?>
+    <div class="row">
+      CAVITY/NEST HOLE: 
+      <span class="yn-pair">YES <?= ynBox($d,'cavity_root','YES') ?></span>
+      <span class="yn-pair">NO <?= ynBox($d,'cavity_root','NO') ?></span>
+      <?php if (!empty($d['cavity_root_pct'])): ?>
       <span>% CIRC. <?= val($d,'cavity_root_pct') ?></span>
       <?php endif; ?>
     </div>
-    <?php endforeach; ?>
   </div>
   <?php if (!empty($d['root_other'])): ?>
   <div class="row">
@@ -468,26 +475,23 @@ function formatMeasurement($value, $unit, $default = '______') {
   <hr>
 
   <!-- OVERALL COMMENTS -->
-<div class="sec">OVERALL TREE INSPECTION COMMENTS</div>
-<div class="notes-section">
+  <div class="sec">OVERALL TREE INSPECTION COMMENTS</div>
+  <div class="notes-section">
     <div class="notes-label">NOTES:</div>
     <div class="notes-content"><?= nl2br(htmlspecialchars($d['notes'] ?? '')) ?></div>
-</div>
-<hr>
+  </div>
+  <hr>
 
-    <!-- MITIGATION + PREPARED BY -->
+  <!-- MITIGATION + PREPARED BY -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:6px">
     <div>
       <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;">
-  <span style="font-weight:bold;text-decoration:underline;font-size:10px">MITIGATION OPTIONS</span>
-  <span style="font-weight:bold;text-decoration:underline;font-size:10px; margin-right: 30px;">OPTION PRIORITY</span>
-</div>
+        <span style="font-weight:bold;text-decoration:underline;font-size:10px">MITIGATION OPTIONS</span>
+        <span style="font-weight:bold;text-decoration:underline;font-size:10px; margin-right: 30px;">OPTION PRIORITY</span>
+      </div>
       <table class="mit-table">
         <thead>
-          <tr>
-            <th style="text-align:left">Option</th>
-            <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th>
-          </tr>
+          <tr><th style="text-align:left">Option</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr>
         </thead>
         <tbody>
           <?php

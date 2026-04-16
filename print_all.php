@@ -18,13 +18,13 @@ if (!$upload) {
     exit;
 }
 
-// Get all trees with their inspections
+// Get all trees with their inspections - FIXED: using tree_no
 $stmt = $pdo->prepare('
     SELECT 
         t.*,
         i.*
     FROM trees t 
-    LEFT JOIN inspections i ON i.tree_id = t.id AND i.upload_id = t.upload_id
+    LEFT JOIN inspections i ON i.tree_no = t.id AND i.upload_id = t.upload_id
     WHERE t.upload_id = ?
     ORDER BY t.id ASC
 ');
@@ -223,7 +223,7 @@ function formatMeasurement($value, $unit, $default = '______') {
     <a href="index.php?upload_id=<?= $upload_id ?>" class="btn-back">← Back</a>
 </div>
 
-<?php foreach ($trees as $index => $tree): ?>
+<?php foreach ($trees as $tree): ?>
 <div class="form">
     <div class="title">TREE INSPECTION FORM</div>
     <hr>
@@ -232,8 +232,8 @@ function formatMeasurement($value, $unit, $default = '______') {
     <div class="row">
         <span class="lbl">CLIENT:</span>
         <span class="val val-lg"><?= val($tree, 'client') ?></span>
-        <span class="lbl">CLIENT ADDRESS:</span>
-        <span class="val val-xl"><?= val($tree, 'client_address') ?></span>
+        <span class="lbl">TREE ID:</span>
+        <span class="val val-lg"><?= val($tree, 'tree_id') ?></span>
     </div>
     <div class="row">
         <span class="lbl">TREE LOCATION:</span>
@@ -301,9 +301,9 @@ function formatMeasurement($value, $unit, $default = '______') {
         <span class="inline">NONE <?= box($tree, 'foliage_none') ?></span>
         <span class="inline">NORMAL <?= box($tree, 'foliage_normal') ?></span>
         <span class="inline">CHLOROTIC <?= box($tree, 'foliage_chlorotic') ?></span>
-        <?php if (!empty($tree['foliage_chlorotic_pct'])): ?>% <?= val($tree, 'foliage_chlorotic_pct') ?><?php endif; ?>
+        <?php if (!empty($tree['foliage_chlorotic_pct'])): ?> <?= val($tree, 'foliage_chlorotic_pct') ?>%<?php endif; ?>
         <span class="inline" style="margin-left:5px">NECROTIC <?= box($tree, 'foliage_necrotic') ?></span>
-        <?php if (!empty($tree['foliage_necrotic_pct'])): ?>% <?= val($tree, 'foliage_necrotic_pct') ?><?php endif; ?>
+        <?php if (!empty($tree['foliage_necrotic_pct'])): ?> <?= val($tree, 'foliage_necrotic_pct') ?>%<?php endif; ?>
     </div>
     <div class="row">
         <span class="lbl">SPECIES FAILURE PROFILE:</span>
@@ -387,7 +387,6 @@ function formatMeasurement($value, $unit, $default = '______') {
             'codominant' => 'CODOMINANT',
             'included_bark_crown' => 'INCLUDED BARK',
             'weak_attachment' => 'WEAK ATTACHMENT',
-            'cavity_crown' => 'CAVITY/NEST HOLE',
             'prev_branch_fail' => 'PREVIOUS BRANCH FAILURES',
             'dead_missing_bark_crown' => 'DEAD/MISSING BARK',
             'cankers_crown' => 'CANKERS/GALLS/BURLS',
@@ -400,11 +399,16 @@ function formatMeasurement($value, $unit, $default = '______') {
             <?= $lbl ?>: 
             <span class="yn-pair">YES <?= ynBox($tree, $k, 'YES') ?></span>
             <span class="yn-pair">NO <?= ynBox($tree, $k, 'NO') ?></span>
-            <?php if ($k === 'cavity_crown' && !empty($tree['cavity_crown_pct'])): ?>
+        </div>
+        <?php endforeach; ?>
+        <div class="row">
+            CAVITY/NEST HOLE: 
+            <span class="yn-pair">YES <?= ynBox($tree, 'cavity_crown', 'YES') ?></span>
+            <span class="yn-pair">NO <?= ynBox($tree, 'cavity_crown', 'NO') ?></span>
+            <?php if (!empty($tree['cavity_crown_pct'])): ?>
             <span>% CIRC. <?= val($tree, 'cavity_crown_pct') ?></span>
             <?php endif; ?>
         </div>
-        <?php endforeach; ?>
     </div>
 
     <!-- Trunk Defects -->
@@ -423,7 +427,6 @@ function formatMeasurement($value, $unit, $default = '______') {
             'lightning_trunk' => 'LIGHTNING DAMAGE',
             'heartwood_trunk' => 'HEARTWOOD DECAY',
             'conks_trunk' => 'CONKS',
-            'cavity_trunk' => 'CAVITY/NEST HOLE',
             'lean' => 'LEAN',
             'response_growth' => 'RESPONSE GROWTH',
         ];
@@ -432,11 +435,16 @@ function formatMeasurement($value, $unit, $default = '______') {
             <?= $lbl ?>: 
             <span class="yn-pair">YES <?= ynBox($tree, $k, 'YES') ?></span>
             <span class="yn-pair">NO <?= ynBox($tree, $k, 'NO') ?></span>
-            <?php if ($k === 'cavity_trunk' && !empty($tree['cavity_trunk_pct'])): ?>
+        </div>
+        <?php endforeach; ?>
+        <div class="row">
+            CAVITY/NEST HOLE: 
+            <span class="yn-pair">YES <?= ynBox($tree, 'cavity_trunk', 'YES') ?></span>
+            <span class="yn-pair">NO <?= ynBox($tree, 'cavity_trunk', 'NO') ?></span>
+            <?php if (!empty($tree['cavity_trunk_pct'])): ?>
             <span>% CIRC. <?= val($tree, 'cavity_trunk_pct') ?></span>
             <?php endif; ?>
         </div>
-        <?php endforeach; ?>
     </div>
     <?php if (!empty($tree['trunk_other'])): ?>
     <div class="row">
@@ -465,7 +473,6 @@ function formatMeasurement($value, $unit, $default = '______') {
             'root_conks' => 'CONKS',
             'root_ooze' => 'OOZE',
             'root_cracks' => 'CRACKS',
-            'cavity_root' => 'CAVITY/NEST HOLE',
             'cut_damage_roots' => 'CUT/DAMAGE ROOTS',
             'root_plate_lifting' => 'ROOT PLATE LIFTING',
             'soil_weakness' => 'SOIL WEAKNESS',
@@ -476,11 +483,16 @@ function formatMeasurement($value, $unit, $default = '______') {
             <?= $lbl ?>: 
             <span class="yn-pair">YES <?= ynBox($tree, $k, 'YES') ?></span>
             <span class="yn-pair">NO <?= ynBox($tree, $k, 'NO') ?></span>
-            <?php if ($k === 'cavity_root' && !empty($tree['cavity_root_pct'])): ?>
+        </div>
+        <?php endforeach; ?>
+        <div class="row">
+            CAVITY/NEST HOLE: 
+            <span class="yn-pair">YES <?= ynBox($tree, 'cavity_root', 'YES') ?></span>
+            <span class="yn-pair">NO <?= ynBox($tree, 'cavity_root', 'NO') ?></span>
+            <?php if (!empty($tree['cavity_root_pct'])): ?>
             <span>% CIRC. <?= val($tree, 'cavity_root_pct') ?></span>
             <?php endif; ?>
         </div>
-        <?php endforeach; ?>
     </div>
     <?php if (!empty($tree['root_other'])): ?>
     <div class="row">
@@ -533,12 +545,12 @@ function formatMeasurement($value, $unit, $default = '______') {
             </table>
         </div>
         <div class="signature-section">
-      <div style="font-weight:bold;text-decoration:underline;margin-bottom:50px;font-size:10px">PREPARED BY</div>
-      <div class="name-line">
-        <div class="prep-line"></div>
-        <div style="font-size:9px; color:#666; margin-top:4px;">Name</div>
-      </div>
-    </div>
+            <div style="font-weight:bold;text-decoration:underline;margin-bottom:50px;font-size:10px">PREPARED BY</div>
+            <div class="name-line">
+                <div class="prep-line"></div>
+                <div style="font-size:9px; color:#666; margin-top:4px;">Name</div>
+            </div>
+        </div>
     </div>
 </div>
 <?php endforeach; ?>

@@ -2,17 +2,17 @@
 require_once 'config/db.php';
 $pdo = db();
 
-$tree_id = intval($_GET['tree_id'] ?? 0);
+$tree_no = intval($_GET['tree_no'] ?? 0);
 $upload_id = intval($_GET['upload_id'] ?? 0);
 
-if (!$tree_id) { 
+if (!$tree_no) { 
     header('Location: index.php'); 
     exit; 
 }
 
 // Load the tree details
 $tree = $pdo->prepare('SELECT * FROM trees WHERE id = ? AND upload_id = ?');
-$tree->execute([$tree_id, $upload_id]);
+$tree->execute([$tree_no, $upload_id]);
 $tree = $tree->fetch();
 
 if (!$tree) {
@@ -21,14 +21,14 @@ if (!$tree) {
 }
 
 // Load the inspection details
-$ins = $pdo->prepare('SELECT * FROM inspections WHERE tree_id = ? AND upload_id = ?');
-$ins->execute([$tree_id, $upload_id]);
+$ins = $pdo->prepare('SELECT * FROM inspections WHERE tree_no = ? AND upload_id = ?');
+$ins->execute([$tree_no, $upload_id]);
 $d = $ins->fetch() ?: [];
 $saved = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $p = $_POST;
-    unset($p['tree_id']);
+    unset($p['tree_no']);
     unset($p['upload_id']);
 
     $integerFields = ['option_priority'];
@@ -86,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         
-        $p['tree_id'] = $tree_id;
+        $p['tree_no'] = $tree_no;
         $p['upload_id'] = $upload_id;
         $cols = array_keys($p);
         $colsStr = implode(', ', array_map(fn($c) => "`$c`", $cols));
@@ -95,8 +95,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $saved = true;
-    $insStmt2 = $pdo->prepare('SELECT * FROM inspections WHERE tree_id = ? AND upload_id = ?');
-    $insStmt2->execute([$tree_id, $upload_id]);
+    $insStmt2 = $pdo->prepare('SELECT * FROM inspections WHERE tree_no = ? AND upload_id = ?');
+    $insStmt2->execute([$tree_no, $upload_id]);
     $d = $insStmt2->fetch() ?: [];
 }
 
@@ -127,7 +127,7 @@ $pre_dbh = v($d, 'dbh') ?: ($tree['dbh'] ?? '');
 $pre_height = v($d, 'height') ?: ($tree['tree_height'] ?? '');
 $pre_crown = v($d, 'crown_spread_dia') ?: ($tree['crown_diameter'] ?? '');
 $pre_client = v($d, 'client');
-$pre_address = v($d, 'client_address');
+$pre_tree_id = v($d, 'tree_id');
 $pre_location = v($d, 'tree_location');
 $pre_species = v($d, 'tree_species');
 $pre_circumf = v($d, 'tree_circumference');
@@ -138,10 +138,9 @@ $pre_circumf = v($d, 'tree_circumference');
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Inspection — Tree #<?= $tree_id ?></title>
+    <title>Inspection — Tree #<?= $tree_no ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="assets/style.css">
     <style>
         * {
             margin: 0;
@@ -182,7 +181,6 @@ $pre_circumf = v($d, 'tree_circumference');
             padding: 20px 24px;
         }
 
-        /* Tree Info Card */
         .tree-info-card {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
@@ -220,7 +218,6 @@ $pre_circumf = v($d, 'tree_circumference');
             color: #0f172a;
         }
 
-        /* Form Cards */
         .form-card {
             background: white;
             border: 1px solid #e2e8f0;
@@ -287,12 +284,20 @@ $pre_circumf = v($d, 'tree_circumference');
         }
 
         .checkbox-group label {
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
             font-weight: normal;
             cursor: pointer;
             font-size: 13px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin: 0;
+            cursor: pointer;
+            accent-color: #b91c1c;
         }
 
         .radio-group {
@@ -302,11 +307,19 @@ $pre_circumf = v($d, 'tree_circumference');
         }
 
         .radio-group label {
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
             cursor: pointer;
             font-size: 13px;
+        }
+
+        .radio-group input[type="radio"] {
+            width: 18px;
+            height: 18px;
+            margin: 0;
+            cursor: pointer;
+            accent-color: #b91c1c;
         }
 
         .section-title {
@@ -320,7 +333,7 @@ $pre_circumf = v($d, 'tree_circumference');
 
         .defect-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
             gap: 12px;
         }
 
@@ -333,6 +346,37 @@ $pre_circumf = v($d, 'tree_circumference');
             border-radius: 8px;
             flex-wrap: wrap;
             gap: 10px;
+        }
+
+        .defect-item span {
+            font-size: 13px;
+            font-weight: 500;
+            color: #334155;
+        }
+
+        .defect-item-with-pct {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            background: #f8fafc;
+            border-radius: 8px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .defect-item-with-pct span {
+            font-size: 13px;
+            font-weight: 500;
+            color: #334155;
+        }
+
+        .pct-field {
+            min-width: 100px;
+        }
+        .pct-field input {
+            width: 80px;
+            padding: 6px 8px;
         }
 
         .mitigation-table {
@@ -352,18 +396,26 @@ $pre_circumf = v($d, 'tree_circumference');
         }
 
         .priority-btn {
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
             border: 2px solid #cbd5e1;
             background: white;
             cursor: pointer;
             transition: all 0.2s;
+            font-weight: bold;
+            font-size: 12px;
         }
 
         .priority-btn:hover {
-            transform: scale(1.1);
+            transform: scale(1.05);
             border-color: #b91c1c;
+        }
+
+        .priority-btn.active {
+            background: #b91c1c;
+            border-color: #b91c1c;
+            color: white;
         }
 
         .btn {
@@ -431,7 +483,6 @@ $pre_circumf = v($d, 'tree_circumference');
             color: #166534;
         }
 
-        /* Mobile Optimizations */
         @media (max-width: 768px) {
             .app-header {
                 padding: 12px 16px;
@@ -460,10 +511,6 @@ $pre_circumf = v($d, 'tree_circumference');
             .defect-grid {
                 grid-template-columns: 1fr;
             }
-            .defect-item {
-                flex-direction: column;
-                align-items: flex-start;
-            }
             .action-buttons {
                 flex-direction: column;
             }
@@ -471,21 +518,12 @@ $pre_circumf = v($d, 'tree_circumference');
                 justify-content: center;
                 width: 100%;
             }
-            .checkbox-group {
-                gap: 10px;
-            }
-            .radio-group {
-                gap: 10px;
-            }
-            .mitigation-table {
-                font-size: 10px;
-            }
             .mitigation-table th, .mitigation-table td {
                 padding: 6px 4px;
             }
             .priority-btn {
-                width: 24px;
-                height: 24px;
+                width: 28px;
+                height: 28px;
             }
         }
     </style>
@@ -493,7 +531,7 @@ $pre_circumf = v($d, 'tree_circumference');
 <body>
 
 <div class="app-header">
-    <h1><i class="fas fa-clipboard-list" style="color: #b91c1c;"></i> Tree Inspection — Tree #<?= $tree_id ?></h1>
+    <h1><i class="fas fa-clipboard-list" style="color: #b91c1c;"></i> Tree Inspection — Tree #<?= $tree_no ?></h1>
     <div>
         <a href="index.php?upload_id=<?= $upload_id ?>" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Back</a>
     </div>
@@ -504,7 +542,6 @@ $pre_circumf = v($d, 'tree_circumference');
     <div class="alert alert-success"><i class="fas fa-check-circle"></i> Inspection saved successfully!</div>
     <?php endif; ?>
 
-    <!-- Tree Info Card -->
     <div class="tree-info-card">
         <div class="tree-stats">
             <div class="tree-stat"><span class="tree-stat-label">Height</span><span class="tree-stat-value"><?= round($tree['tree_height'] ?? 0, 2) ?> m</span></div>
@@ -518,26 +555,19 @@ $pre_circumf = v($d, 'tree_circumference');
         <?php endif; ?>
     </div>
 
-    <form method="POST">
-        <!-- CLIENT INFO -->
+    <form method="POST" id="inspectionForm">
+        <!-- TREE INFO -->
         <div class="form-card">
-            <h2><i class="fas fa-user"></i> Client Information</h2>
+            <h2><i class="fas fa-tree"></i> Tree Information</h2>
             <div class="form-grid">
                 <div class="field">
                     <label>Client Name</label>
-                    <input type="text" name="client" value="<?= htmlspecialchars($pre_client) ?>">
+                    <input type="text" name="client" value="<?= htmlspecialchars($pre_client) ?>" placeholder="Client name">
                 </div>
                 <div class="field">
-                    <label>Client Address</label>
-                    <input type="text" name="client_address" value="<?= htmlspecialchars($pre_address) ?>">
+                    <label>Tree ID (Inspection Reference)</label>
+                    <input type="text" name="tree_id" value="<?= htmlspecialchars($pre_tree_id) ?>" placeholder="Enter tree ID for this inspection">
                 </div>
-            </div>
-        </div>
-
-        <!-- TREE INFO -->
-        <div class="form-card">
-            <h2><i class="fas fa-info-circle"></i> Tree Information</h2>
-            <div class="form-grid">
                 <div class="field">
                     <label>Tree Location</label>
                     <input type="text" name="tree_location" value="<?= htmlspecialchars($pre_location) ?>" placeholder="e.g., Backyard, near fence">
@@ -546,6 +576,13 @@ $pre_circumf = v($d, 'tree_circumference');
                     <label>Tree Species</label>
                     <input type="text" name="tree_species" value="<?= htmlspecialchars($pre_species) ?>">
                 </div>
+            </div>
+        </div>
+
+        <!-- TREE MEASUREMENTS -->
+        <div class="form-card">
+            <h2><i class="fas fa-ruler"></i> Tree Measurements</h2>
+            <div class="form-grid">
                 <div class="field">
                     <label>DBH (cm)</label>
                     <input type="text" name="dbh" value="<?= htmlspecialchars($pre_dbh) ?>">
@@ -594,23 +631,17 @@ $pre_circumf = v($d, 'tree_circumference');
                 <label><input type="checkbox" name="soil_normal" value="1" <?= chk($d,'soil_normal') ?>> Normal</label>
             </div>
 
-            <div class="section-title">Weather</div>
-            <div class="form-grid">
-                <div class="field">
-                    <label>Prevailing Wind Direction</label>
-                    <div class="radio-group">
-                        <label><input type="radio" name="prevailing_wind" value="YES" <?= yn($d,'prevailing_wind','YES') ?>> Yes</label>
-                        <label><input type="radio" name="prevailing_wind" value="NO" <?= yn($d,'prevailing_wind','NO') ?>> No</label>
-                    </div>
-                </div>
-                <div class="field">
-                    <label>Common Weather</label>
-                    <div class="checkbox-group">
-                        <label><input type="checkbox" name="weather_strong" value="1" <?= chk($d,'weather_strong') ?>> Strong Winds</label>
-                        <label><input type="checkbox" name="weather_rain" value="1" <?= chk($d,'weather_rain') ?>> Heavy Rain</label>
-                        <label><input type="checkbox" name="weather_normal" value="1" <?= chk($d,'weather_normal') ?>> Normal</label>
-                    </div>
-                </div>
+            <div class="section-title">Prevailing Wind Direction</div>
+            <div class="radio-group">
+                <label><input type="radio" name="prevailing_wind" value="YES" <?= yn($d,'prevailing_wind','YES') ?>> YES</label>
+                <label><input type="radio" name="prevailing_wind" value="NO" <?= yn($d,'prevailing_wind','NO') ?>> NO</label>
+            </div>
+
+            <div class="section-title">Common Weather</div>
+            <div class="checkbox-group">
+                <label><input type="checkbox" name="weather_strong" value="1" <?= chk($d,'weather_strong') ?>> Strong Winds</label>
+                <label><input type="checkbox" name="weather_rain" value="1" <?= chk($d,'weather_rain') ?>> Heavy Rain</label>
+                <label><input type="checkbox" name="weather_normal" value="1" <?= chk($d,'weather_normal') ?>> Normal</label>
             </div>
         </div>
 
@@ -618,13 +649,11 @@ $pre_circumf = v($d, 'tree_circumference');
         <div class="form-card">
             <h2><i class="fas fa-heartbeat"></i> Tree Health</h2>
             
-            <div class="field">
-                <label>Vigor</label>
-                <div class="radio-group">
-                    <label><input type="radio" name="vigor" value="Low" <?= yn($d,'vigor','Low') ?>> Low</label>
-                    <label><input type="radio" name="vigor" value="Normal" <?= yn($d,'vigor','Normal') ?>> Normal</label>
-                    <label><input type="radio" name="vigor" value="High" <?= yn($d,'vigor','High') ?>> High</label>
-                </div>
+            <div class="section-title">Vigor</div>
+            <div class="radio-group">
+                <label><input type="radio" name="vigor" value="Low" <?= yn($d,'vigor','Low') ?>> Low</label>
+                <label><input type="radio" name="vigor" value="Normal" <?= yn($d,'vigor','Normal') ?>> Normal</label>
+                <label><input type="radio" name="vigor" value="High" <?= yn($d,'vigor','High') ?>> High</label>
             </div>
 
             <div class="section-title">Foliage</div>
@@ -662,31 +691,25 @@ $pre_circumf = v($d, 'tree_circumference');
         <div class="form-card">
             <h2><i class="fas fa-weight-hanging"></i> Load Factors</h2>
             
-            <div class="field">
-                <label>Wind Exposure</label>
-                <div class="radio-group">
-                    <?php foreach (['Protected','Partial','Full','Wind Funneling','None'] as $o): ?>
-                    <label><input type="radio" name="wind_exposure" value="<?= $o ?>" <?= yn($d,'wind_exposure',$o) ?>> <?= $o ?></label>
-                    <?php endforeach; ?>
-                </div>
+            <div class="section-title">Wind Exposure</div>
+            <div class="radio-group">
+                <?php foreach (['Protected','Partial','Full','Wind Funneling','None'] as $o): ?>
+                <label><input type="radio" name="wind_exposure" value="<?= $o ?>" <?= yn($d,'wind_exposure',$o) ?>> <?= $o ?></label>
+                <?php endforeach; ?>
             </div>
             
-            <div class="field">
-                <label>Relative Crown Size</label>
-                <div class="radio-group">
-                    <?php foreach (['Small','Medium','Large'] as $o): ?>
-                    <label><input type="radio" name="relative_crown_size" value="<?= $o ?>" <?= yn($d,'relative_crown_size',$o) ?>> <?= $o ?></label>
-                    <?php endforeach; ?>
-                </div>
+            <div class="section-title">Relative Crown Size</div>
+            <div class="radio-group">
+                <?php foreach (['Small','Medium','Large'] as $o): ?>
+                <label><input type="radio" name="relative_crown_size" value="<?= $o ?>" <?= yn($d,'relative_crown_size',$o) ?>> <?= $o ?></label>
+                <?php endforeach; ?>
             </div>
             
-            <div class="field">
-                <label>Crown Density</label>
-                <div class="radio-group">
-                    <?php foreach (['Sparse','Normal','Dense'] as $o): ?>
-                    <label><input type="radio" name="crown_density" value="<?= $o ?>" <?= yn($d,'crown_density',$o) ?>> <?= $o ?></label>
-                    <?php endforeach; ?>
-                </div>
+            <div class="section-title">Crown Density</div>
+            <div class="radio-group">
+                <?php foreach (['Sparse','Normal','Dense'] as $o): ?>
+                <label><input type="radio" name="crown_density" value="<?= $o ?>" <?= yn($d,'crown_density',$o) ?>> <?= $o ?></label>
+                <?php endforeach; ?>
             </div>
         </div>
 
@@ -755,7 +778,6 @@ $pre_circumf = v($d, 'tree_circumference');
                     'codominant' => 'Codominant',
                     'included_bark_crown' => 'Included Bark',
                     'weak_attachment' => 'Weak Attachment',
-                    'cavity_crown' => 'Cavity/Nest Hole',
                     'prev_branch_fail' => 'Previous Branch Failures',
                     'dead_missing_bark_crown' => 'Dead/Missing Bark',
                     'cankers_crown' => 'Cankers/Galls/Burls',
@@ -772,6 +794,17 @@ $pre_circumf = v($d, 'tree_circumference');
                     </div>
                 </div>
                 <?php endforeach; ?>
+                <div class="defect-item">
+                    <span>Cavity/Nest Hole:</span>
+                    <div class="radio-group">
+                        <label><input type="radio" name="cavity_crown" value="YES" <?= yn($d,'cavity_crown','YES') ?>> Yes</label>
+                        <label><input type="radio" name="cavity_crown" value="NO" <?= yn($d,'cavity_crown','NO') ?>> No</label>
+                    </div>
+                    <div class="field pct-field">
+                        <label>% CIRC.</label>
+                        <input type="text" name="cavity_crown_pct" value="<?= v($d,'cavity_crown_pct') ?>" placeholder="%">
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -792,7 +825,6 @@ $pre_circumf = v($d, 'tree_circumference');
                     'lightning_trunk' => 'Lightning Damage',
                     'heartwood_trunk' => 'Heartwood Decay',
                     'conks_trunk' => 'Conks',
-                    'cavity_trunk' => 'Cavity/Nest Hole',
                     'lean' => 'Lean',
                     'response_growth' => 'Response Growth',
                 ];
@@ -805,6 +837,17 @@ $pre_circumf = v($d, 'tree_circumference');
                     </div>
                 </div>
                 <?php endforeach; ?>
+                <div class="defect-item">
+                    <span>Cavity/Nest Hole:</span>
+                    <div class="radio-group">
+                        <label><input type="radio" name="cavity_trunk" value="YES" <?= yn($d,'cavity_trunk','YES') ?>> Yes</label>
+                        <label><input type="radio" name="cavity_trunk" value="NO" <?= yn($d,'cavity_trunk','NO') ?>> No</label>
+                    </div>
+                    <div class="field pct-field">
+                        <label>% CIRC.</label>
+                        <input type="text" name="cavity_trunk_pct" value="<?= v($d,'cavity_trunk_pct') ?>" placeholder="%">
+                    </div>
+                </div>
             </div>
             <div class="field"><label>Other Trunk Issues</label><input type="text" name="trunk_other" value="<?= v($d,'trunk_other') ?>"></div>
         </div>
@@ -831,7 +874,6 @@ $pre_circumf = v($d, 'tree_circumference');
                     'root_conks' => 'Conks',
                     'root_ooze' => 'Ooze',
                     'root_cracks' => 'Cracks',
-                    'cavity_root' => 'Cavity/Nest Hole',
                     'cut_damage_roots' => 'Cut/Damage Roots',
                     'root_plate_lifting' => 'Root Plate Lifting',
                     'soil_weakness' => 'Soil Weakness',
@@ -846,6 +888,17 @@ $pre_circumf = v($d, 'tree_circumference');
                     </div>
                 </div>
                 <?php endforeach; ?>
+                <div class="defect-item">
+                    <span>Cavity/Nest Hole:</span>
+                    <div class="radio-group">
+                        <label><input type="radio" name="cavity_root" value="YES" <?= yn($d,'cavity_root','YES') ?>> Yes</label>
+                        <label><input type="radio" name="cavity_root" value="NO" <?= yn($d,'cavity_root','NO') ?>> No</label>
+                    </div>
+                    <div class="field pct-field">
+                        <label>% CIRC.</label>
+                        <input type="text" name="cavity_root_pct" value="<?= v($d,'cavity_root_pct') ?>" placeholder="%">
+                    </div>
+                </div>
             </div>
             <div class="field"><label>Other Root Issues</label><input type="text" name="root_other" value="<?= v($d,'root_other') ?>"></div>
         </div>
@@ -875,7 +928,7 @@ $pre_circumf = v($d, 'tree_circumference');
                             <td style="text-align:left"><?= $label ?></td>
                             <?php for ($i = 1; $i <= 5; $i++): ?>
                             <td style="text-align:center">
-                                <button type="button" class="priority-btn" data-option="<?= htmlspecialchars($value) ?>" data-priority="<?= $i ?>" style="background: <?= ($savedPriority === $i) ? '#b91c1c' : 'white' ?>; border-color: <?= ($savedPriority === $i) ? '#b91c1c' : '#cbd5e1' ?>;"></button>
+                                <button type="button" class="priority-btn <?= ($savedPriority === $i) ? 'active' : '' ?>" data-option="<?= htmlspecialchars($value) ?>" data-priority="<?= $i ?>"><?= $i ?></button>
                             </td>
                             <?php endfor; ?>
                             <input type="hidden" name="<?= $optionKey ?>" value="<?= $savedPriority ?>" id="hidden_<?= $optionKey ?>">
@@ -922,6 +975,35 @@ $pre_circumf = v($d, 'tree_circumference');
 </div>
 
 <script>
+// Radio button toggle functionality (allow unchecking)
+document.querySelectorAll('input[type="radio"]').forEach(radio => {
+    if (radio.checked) {
+        radio.setAttribute('data-checked', 'true');
+    }
+    
+    radio.addEventListener('click', function(e) {
+        const wasChecked = this.hasAttribute('data-checked');
+        const name = this.name;
+        
+        if (!wasChecked) {
+            document.querySelectorAll(`input[name="${name}"]`).forEach(r => {
+                r.removeAttribute('data-checked');
+                r.checked = false;
+            });
+            this.checked = true;
+            this.setAttribute('data-checked', 'true');
+        } else {
+            this.checked = false;
+            this.removeAttribute('data-checked');
+        }
+    });
+    
+    if (radio.checked) {
+        radio.setAttribute('data-checked', 'true');
+    }
+});
+
+// Priority buttons functionality
 document.querySelectorAll('.priority-btn').forEach(btn => {
     btn.addEventListener('click', function(e) {
         e.preventDefault();
@@ -931,19 +1013,16 @@ document.querySelectorAll('.priority-btn').forEach(btn => {
         const hiddenInput = document.getElementById('hidden_' + optionKey);
         const allBtnsInRow = this.closest('tr').querySelectorAll('.priority-btn');
         
-        const isSelected = this.style.backgroundColor === 'rgb(185, 28, 28)' || this.style.backgroundColor === '#b91c1c';
+        const isSelected = this.classList.contains('active');
         
         if (isSelected) {
-            this.style.backgroundColor = 'white';
-            this.style.borderColor = '#cbd5e1';
+            this.classList.remove('active');
             if (hiddenInput) hiddenInput.value = '';
         } else {
             allBtnsInRow.forEach(btn => {   
-                btn.style.backgroundColor = 'white';
-                btn.style.borderColor = '#cbd5e1';
+                btn.classList.remove('active');
             });
-            this.style.backgroundColor = '#b91c1c';
-            this.style.borderColor = '#b91c1c';
+            this.classList.add('active');
             if (hiddenInput) hiddenInput.value = priority;
         }
     });

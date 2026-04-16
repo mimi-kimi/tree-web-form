@@ -39,7 +39,7 @@ $search_tree_id = isset($_GET['search_tree_id']) ? trim($_GET['search_tree_id'])
 $search_location = isset($_GET['search_location']) ? trim($_GET['search_location']) : '';
 $filter_status = isset($_GET['filter_status']) ? $_GET['filter_status'] : '';
 
-// Build WHERE conditions
+// Build WHERE conditions - change from location to tree_id
 $whereConditions = ["t.upload_id = ?"];
 $params = [$active_upload_id];
 
@@ -49,7 +49,8 @@ if ($search_tree_id !== '') {
 }
 
 if ($search_location !== '') {
-    $whereConditions[] = "i.tree_location LIKE ?";
+    // Search by tree_id in inspections table
+    $whereConditions[] = "i.tree_id LIKE ?";
     $params[] = "%$search_location%";
 }
 
@@ -158,34 +159,20 @@ $deleted = $_GET['deleted'] ?? '';
         }
 
         .sidebar-logo {
-            display: column;
-            align-items: center;
             text-align: center;
-            gap: 12px;
         }
 
-        .sidebar-logo-icon {
-            width: 32px;
-            height: 32px;
-            background: #b91c1c;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 16px;
-        }
-
-        .sidebar-logo-text {
-            font-weight: 700;
-            font-size: 18px;
-            color: white;
+        .sidebar-logo-img {
+            width: 100%;
+            max-width: 180px;
+            height: auto;
+            margin-bottom: 12px;
         }
 
         .sidebar-logo-sub {
-            font-size: 16px;
+            font-size: 13px;
             color: #94a3b8;
-            margin-top: 2px;
+            margin-top: 4px;
         }
 
         .sidebar-nav {
@@ -257,23 +244,7 @@ $deleted = $_GET['deleted'] ?? '';
             font-size: 11px;
             color: #94a3b8;
         }
-        .sidebar-logo-img {
-        width: 100%;
-        height: auto;
-        object-fit: contain;
-        padding: 10 10px;
-    }
 
-    .sidebar-logo-icon-fallback {
-    width: 36px;
-    height: 36px;
-    background: #b91c1c;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    }
         /* ========== MAIN CONTENT ========== */
         .main-content {
             flex: 1;
@@ -334,18 +305,58 @@ $deleted = $_GET['deleted'] ?? '';
             color: #b91c1c;
         }
 
+        /* ========== FORM STYLES ========== */
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-group label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #b91c1c;
+            box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.1);
+        }
+
         /* ========== FILTER BAR ========== */
-        /* Filter Bar - Mobile Optimized */
 .filter-bar {
     display: flex;
     gap: 16px;
     flex-wrap: wrap;
     align-items: flex-end;
+    width: 100%;
 }
 
 .filter-group {
     flex: 1;
-    min-width: 180px;
+    min-width: 0;
 }
 
 .filter-group label {
@@ -367,33 +378,30 @@ $deleted = $_GET['deleted'] ?? '';
     font-size: 13px;
     font-family: 'Inter', sans-serif;
     background: white;
+    box-sizing: border-box;
 }
 
 .filter-actions {
     display: flex;
     gap: 12px;
+    flex-shrink: 0;
 }
 
-/* Mobile: Full width inputs */
 @media (max-width: 768px) {
     .filter-bar {
         flex-direction: column;
-        align-items: stretch;
+        gap: 12px;
     }
     
     .filter-group {
         width: 100%;
-    }
-    
-    .filter-group input,
-    .filter-group select {
-        width: 100%;
-        box-sizing: border-box;
+        min-width: auto;
     }
     
     .filter-actions {
-        flex-direction: column;
         width: 100%;
+        flex-direction: column;
+        gap: 10px;
     }
     
     .filter-actions .btn {
@@ -517,6 +525,88 @@ $deleted = $_GET['deleted'] ?? '';
             color: #92400e;
         }
 
+        /* ========== STATS CARDS ========== */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .stat-card-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-card-label {
+            font-size: 12px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-card-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .stat-card-icon {
+            width: 48px;
+            height: 48px;
+            background: #fef2f2;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #b91c1c;
+            font-size: 24px;
+        }
+
+        /* ========== DATASET BAR ========== */
+        .dataset-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .dataset-selector {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .dataset-selector select {
+            padding: 8px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 13px;
+            background: white;
+        }
+
+        .dataset-info {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .dataset-info strong {
+            color: #0f172a;
+        }
+
         /* ========== PAGINATION ========== */
         .pagination-container {
             display: flex;
@@ -525,6 +615,10 @@ $deleted = $_GET['deleted'] ?? '';
             margin-top: 20px;
             flex-wrap: wrap;
             gap: 12px;
+            padding: 16px;
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
         }
 
         .pagination {
@@ -572,113 +666,143 @@ $deleted = $_GET['deleted'] ?? '';
             color: #94a3b8;
         }
 
-        .pagination-info {
-            font-size: 13px;
-            color: #64748b;
-        }
-
-        /* ========== STATS BAR ========== */
-        .stats-bar {
-            display: flex;
-            gap: 24px;
-            padding: 16px 0;
+        /* ========== ALERTS ========== */
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
             margin-bottom: 20px;
-            border-bottom: 1px solid #e2e8f0;
-        }
-
-        .stat-item {
             display: flex;
-            align-items: baseline;
-            gap: 8px;
-        }
-
-        .stat-label {
-            font-size: 12px;
-            color: #64748b;
-        }
-
-        .stat-value {
-            font-size: 20px;
-            font-weight: 700;
-            color: #0f172a;
-        }
-
-        /* ========== MODAL ========== */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 1000;
-            justify-content: center;
             align-items: center;
+            gap: 10px;
         }
 
-        .modal-content {
-            background: white;
-            padding: 24px;
-            border-radius: 12px;
-            max-width: 400px;
-            width: 90%;
-            text-align: center;
+        .alert-success {
+            background: #dcfce7;
+            border: 1px solid #bbf7d0;
+            color: #166534;
         }
 
-        .modal-buttons {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-            margin-top: 20px;
+        .alert-error {
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
         }
 
         /* ========== MOBILE ========== */
         @media (max-width: 768px) {
             .sidebar {
                 transform: translateX(-100%);
-                transition: transform 0.3s;
+                transition: transform 0.3s ease-in-out;
+                width: 280px;
+                z-index: 1000;
             }
+            
             .sidebar.open {
                 transform: translateX(0);
             }
+            
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 999;
+            }
+            
+            .sidebar-overlay.active {
+                display: block;
+            }
+            
             .main-content {
                 margin-left: 0;
             }
+            
             .content-area {
                 padding: 16px;
             }
+            
             .top-bar {
                 padding: 12px 16px;
             }
+            
+            .menu-toggle {
+                display: block;
+                background: none;
+                border: none;
+                font-size: 20px;
+                cursor: pointer;
+                color: #475569;
+            }
+            
             .filter-bar {
                 flex-direction: column;
             }
+            
             .filter-actions {
                 flex-direction: column;
+                width: 100%;
             }
+            
             .filter-actions .btn {
                 width: 100%;
                 justify-content: center;
             }
-            .stats-bar {
-                flex-wrap: wrap;
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
                 gap: 12px;
             }
+            
+            .stat-card-value {
+                font-size: 22px;
+            }
+            
+            .stat-card-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            
+            .dataset-bar {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .dataset-selector {
+                width: 100%;
+                flex-direction: column;
+            }
+            
+            .dataset-selector select,
+            .dataset-selector .btn {
+                width: 100%;
+            }
+            
             .mobile-cards {
                 display: flex;
                 flex-direction: column;
                 gap: 12px;
             }
+            
             .desktop-table {
                 display: none;
             }
+            
             .tree-card {
                 background: white;
                 border: 1px solid #e2e8f0;
                 border-radius: 10px;
                 padding: 14px;
             }
+            
             .tree-card-header {
                 display: flex;
                 justify-content: space-between;
@@ -686,16 +810,19 @@ $deleted = $_GET['deleted'] ?? '';
                 padding-bottom: 8px;
                 border-bottom: 1px solid #e2e8f0;
             }
+            
             .tree-details {
                 display: grid;
                 grid-template-columns: 1fr 1fr;
                 gap: 8px;
                 margin-bottom: 12px;
             }
+            
             .tree-actions {
                 display: flex;
                 gap: 8px;
             }
+            
             .tree-actions .btn {
                 flex: 1;
                 justify-content: center;
@@ -713,138 +840,6 @@ $deleted = $_GET['deleted'] ?? '';
                 display: none;
             }
         }
-
-        .menu-toggle {
-            background: none;
-            border: none;
-            font-size: 20px;
-            cursor: pointer;
-            color: #475569;
-        }
-    /* Mobile Sidebar Styles */
-@media (max-width: 768px) {
-    .sidebar {
-        transform: translateX(-100%);
-        transition: transform 0.3s ease-in-out;
-        width: 280px;
-        z-index: 1000;
-    }
-    
-    .sidebar.open {
-        transform: translateX(0);
-    }
-    
-    .main-content {
-        margin-left: 0;
-    }
-    
-    /* Overlay when sidebar is open */
-    .sidebar-overlay {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 999;
-    }
-    
-    .sidebar-overlay.active {
-        display: block;
-    }
-    
-    .content-area {
-        padding: 16px;
-    }
-    
-    .top-bar {
-        padding: 12px 16px;
-    }
-    
-    .menu-toggle {
-        display: block;
-        background: none;
-        border: none;
-        font-size: 20px;
-        cursor: pointer;
-        color: #475569;
-    }
-    
-    .filter-bar {
-        flex-direction: column;
-    }
-    
-    .filter-actions {
-        flex-direction: column;
-    }
-    
-    .filter-actions .btn {
-        width: 100%;
-        justify-content: center;
-    }
-    
-    .stats-bar {
-        flex-wrap: wrap;
-        gap: 12px;
-    }
-    
-    .mobile-cards {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-    }
-    
-    .desktop-table {
-        display: none;
-    }
-    
-    .tree-card {
-        background: white;
-        border: 1px solid #e2e8f0;
-        border-radius: 10px;
-        padding: 14px;
-    }
-    
-    .tree-card-header {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 10px;
-        padding-bottom: 8px;
-        border-bottom: 1px solid #e2e8f0;
-    }
-    
-    .tree-details {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 8px;
-        margin-bottom: 12px;
-    }
-    
-    .tree-actions {
-        display: flex;
-        gap: 8px;
-    }
-    
-    .tree-actions .btn {
-        flex: 1;
-        justify-content: center;
-    }
-}
-
-    @media (min-width: 769px) {
-        .mobile-cards {
-        display: none;
-        }
-    
-        .desktop-table {
-        display: block;
-        }
-    
-        .menu-toggle {
-        display: none;
-        }
-    }
     </style>
 </head>
 <body>
@@ -853,33 +848,14 @@ $deleted = $_GET['deleted'] ?? '';
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="sidebar-logo">
-            <img src="assets/HS Innovators sd bhd transparent.png" alt="HS innovators Sdn Bhd" class="sidebar-logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-            <div>
-                <!--<div class="sidebar-logo-text" id="companyName">HS innovators sdn bhd</div>-->
+                <img src="assets/HS Innovators sd bhd transparent.png" alt="HS innovators Sdn Bhd" class="sidebar-logo-img" onerror="this.style.display='none'">
                 <div class="sidebar-logo-sub">Tree Inspection Management</div>
-            </div>
             </div>
         </div>
         <nav class="sidebar-nav">
             <a href="#" class="nav-item active">
                 <i class="fas fa-tree"></i>
                 <span>Tree Inventory</span>
-            </a>
-            <a href="#" class="nav-item">
-                <i class="fas fa-chart-line"></i>
-                <span>Analytics</span>
-            </a>
-            <a href="#" class="nav-item">
-                <i class="fas fa-file-alt"></i>
-                <span>Reports</span>
-            </a>
-            <a href="#" class="nav-item">
-                <i class="fas fa-database"></i>
-                <span>Datasets</span>
-            </a>
-            <a href="#" class="nav-item">
-                <i class="fas fa-cog"></i>
-                <span>Settings</span>
             </a>
         </nav>
         <div class="sidebar-footer">
@@ -892,67 +868,70 @@ $deleted = $_GET['deleted'] ?? '';
             </div>
         </div>
     </aside>
+    
     <!-- Sidebar Overlay for mobile -->
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+    
     <!-- Main Content -->
     <main class="main-content">
         <div class="top-bar">
-    <div style="display: flex; align-items: center; gap: 16px;">
-        <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()">
-            <i class="fas fa-bars"></i>
-        </button>
-        <div class="page-title">
-            <h1>Tree Inventory</h1>
-            <p>Manage and inspect tree assets</p>
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="page-title">
+                    <h1>Tree Inventory</h1>
+                    <p>Manage and inspect tree assets</p>
+                </div>
+            </div>
         </div>
-    </div>
-    <div>
-        <i class="fas fa-search" style="color: #94a3b8; cursor: pointer;"></i>
-    </div>
-</div>
 
         <div class="content-area">
             <!-- Alerts -->
             <?php if ($msg === 'uploaded'): ?>
-            <div style="background: #dcfce7; border: 1px solid #bbf7d0; color: #166534; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px;">
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i>
                 Excel uploaded! <strong><?= (int)($_GET['count'] ?? 0) ?> trees</strong> imported.
             </div>
             <?php elseif ($msg === 'error'): ?>
-            <div style="background: #fee2e2; border: 1px solid #fecaca; color: #991b1b; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px;">
+            <div class="alert alert-error">
+                <i class="fas fa-exclamation-triangle"></i>
                 Upload failed. Use .xlsx or .csv with correct columns.
             </div>
             <?php elseif ($deleted == 1): ?>
-            <div style="background: #dcfce7; border: 1px solid #bbf7d0; color: #166534; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px;">
-                Dataset deleted.
+            <div class="alert alert-success">
+                <i class="fas fa-trash-alt"></i>
+                Dataset deleted successfully.
             </div>
             <?php elseif ($msg === 'missing_name'): ?>
-            <div style="background: #fee2e2; border: 1px solid #fecaca; color: #991b1b; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px;">
+            <div class="alert alert-error">
+                <i class="fas fa-exclamation-triangle"></i>
                 Please provide a name for the dataset.
             </div>
             <?php endif; ?>
 
-            <!-- Control Panel -->
+            <!-- Upload Card -->
             <div class="control-card">
                 <div class="control-card-title">
-                    <i class="fas fa-cloud-upload-alt"></i> Data Management
+                    <i class="fas fa-cloud-upload-alt"></i> Import New Dataset
                 </div>
                 <form action="upload.php" method="POST" enctype="multipart/form-data">
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 16px;">
-                        <div>
-                            <label style="font-size: 12px; font-weight: 500; color: #475569;">Excel File</label>
-                            <input type="file" name="excel" accept=".xlsx,.csv" required style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Excel File (.xlsx, .csv)</label>
+                            <input type="file" name="excel" accept=".xlsx,.csv" required>
                         </div>
-                        <div>
-                            <label style="font-size: 12px; font-weight: 500; color: #475569;">Upload Name</label>
-                            <input type="text" name="upload_name" placeholder="e.g., Site A - March 2024" required style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px;">
+                        <div class="form-group">
+                            <label>Dataset Name</label>
+                            <input type="text" name="upload_name" placeholder="e.g., Site A - March 2024" required>
                         </div>
-                        <div>
-                            <label style="font-size: 12px; font-weight: 500; color: #475569;">Description (optional)</label>
-                            <input type="text" name="description" placeholder="Additional notes" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px;">
+                        <div class="form-group">
+                            <label>Description (optional)</label>
+                            <input type="text" name="description" placeholder="Additional notes">
                         </div>
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-                        <label style="display: flex; align-items: center; gap: 8px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                             <input type="checkbox" name="set_active" value="1" checked> Set as active dataset
                         </label>
                         <button type="submit" class="btn btn-primary"><i class="fas fa-upload"></i> Upload & Import</button>
@@ -960,18 +939,18 @@ $deleted = $_GET['deleted'] ?? '';
                 </form>
             </div>
 
-            <!-- Dataset Selector -->
+            <!-- Dataset Management -->
             <?php if (!empty($uploads) && $active_upload_id): ?>
             <div class="control-card">
                 <div class="control-card-title">
-                    <i class="fas fa-database"></i> Active Dataset
+                    <i class="fas fa-database"></i> Dataset Management
                 </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
-                    <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
-                        <select id="datasetSelect" onchange="switchDataset()" style="padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px;">
+                <div class="dataset-bar">
+                    <div class="dataset-selector">
+                        <select id="datasetSelect" onchange="switchDataset()">
                             <?php foreach ($uploads as $u): ?>
                             <option value="<?= $u['upload_id'] ?>" <?= ($active_upload_id == $u['upload_id']) ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($u['upload_name']) ?> (<?= $u['row_count'] ?> trees) <?= $u['is_active'] ? '[ACTIVE]' : '' ?>
+                                <?= htmlspecialchars($u['upload_name']) ?> (<?= $u['row_count'] ?> trees) <?= $u['is_active'] ? '✓ Active' : '' ?>
                             </option>
                             <?php endforeach; ?>
                         </select>
@@ -982,92 +961,133 @@ $deleted = $_GET['deleted'] ?? '';
                         <button class="btn btn-secondary btn-sm" onclick="window.location.href='export_excel.php?upload_id=<?= $active_upload_id ?>'"><i class="fas fa-file-excel"></i> Export</button>
                         <?php endif; ?>
                     </div>
-                    <div><strong><?= htmlspecialchars($selectedUploadName) ?></strong> (<?= $total_trees ?> records)</div>
+                    <div class="dataset-info">
+                        <strong><?= htmlspecialchars($selectedUploadName) ?></strong> · <?= $total_trees ?> records
+                    </div>
                 </div>
             </div>
             <?php endif; ?>
 
-            <!-- Filter Bar -->
-            <div class="control-card">
-                <div class="control-card-title">
-                    <i class="fas fa-filter"></i> Filter Records
-                </div>
-                <form method="GET">
-                    <input type="hidden" name="upload_id" value="<?= $active_upload_id ?>">
-                    <div class="filter-bar">
-                        <div class="filter-group">
-                            <label>Tree ID</label>
-                            <input type="text" name="search_tree_id" placeholder="Enter Tree ID" value="<?= htmlspecialchars($search_tree_id) ?>">
-                        </div>
-                        <div class="filter-group">
-                            <label>Location</label>
-                            <input type="text" name="search_location" placeholder="Enter Location" value="<?= htmlspecialchars($search_location) ?>">
-                        </div>
-                        <div class="filter-group">
-                            <label>Status</label>
-                            <select name="filter_status">
-                                <option value="">All</option>
-                                <option value="completed" <?= $filter_status === 'completed' ? 'selected' : '' ?>>Completed</option>
-                                <option value="incomplete" <?= $filter_status === 'incomplete' ? 'selected' : '' ?>>Incomplete</option>
-                            </select>
-                        </div>
-                        <div class="filter-actions">
-                            <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Apply</button>
-                            <a href="?upload_id=<?= $active_upload_id ?>" class="btn btn-outline">Reset</a>
-                        </div>
-                    </div>
-                </form>
-            </div>
+            <!-- Filter Section -->
+            <?php if ($active_upload_id): ?>
+            <!-- Filter Section - Updated -->
+<div class="control-card">
+    <div class="control-card-title">
+        <i class="fas fa-filter"></i> Filter Records
+    </div>
+    <form method="GET">
+        <input type="hidden" name="upload_id" value="<?= $active_upload_id ?>">
+        <div class="filter-bar">
+    <div class="filter-group">
+        <label>NO</label>
+        <input type="text" name="search_tree_id" placeholder="Enter Tree ID" value="<?= htmlspecialchars($search_tree_id) ?>">
+    </div>
+    <div class="filter-group">
+        <label>Tree ID</label>
+        <input type="text" name="search_location" placeholder="Enter Inspection Tree ID" value="<?= htmlspecialchars($search_location) ?>">
+    </div>
+    <div class="filter-group">
+        <label>Status</label>
+        <select name="filter_status">
+            <option value="">All</option>
+            <option value="completed" <?= $filter_status === 'completed' ? 'selected' : '' ?>>Completed</option>
+            <option value="incomplete" <?= $filter_status === 'incomplete' ? 'selected' : '' ?>>Incomplete</option>
+        </select>
+    </div>
+    <div class="filter-actions">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Apply</button>
+        <a href="?upload_id=<?= $active_upload_id ?>" class="btn btn-outline">Reset</a>
+    </div>
+</div>
+    </form>
+</div>
+            <?php endif; ?>
 
-            <!-- Stats -->
+            <!-- Statistics Cards -->
             <?php if ($total_trees > 0): 
                 $completedCount = 0;
                 foreach ($trees as $t) {
                     if (!empty($t['prepared_by'])) $completedCount++;
                 }
                 $incompleteCount = $total_trees - $completedCount;
+                $completionPercent = $total_trees > 0 ? round(($completedCount / $total_trees) * 100) : 0;
             ?>
-            <div class="stats-bar">
-                <div class="stat-item"><span class="stat-label">Total Trees</span><span class="stat-value"><?= $total_trees ?></span></div>
-                <div class="stat-item"><span class="stat-label">Completed</span><span class="stat-value" style="color: #166534;"><?= $completedCount ?></span></div>
-                <div class="stat-item"><span class="stat-label">Incomplete</span><span class="stat-value" style="color: #92400e;"><?= $incompleteCount ?></span></div>
-                <div class="stat-item"><span class="stat-label">Showing</span><span class="stat-value"><?= $offset + 1 ?> - <?= min($offset + $items_per_page, $total_trees) ?></span></div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-card-info">
+                        <span class="stat-card-label">Total Trees</span>
+                        <span class="stat-card-value"><?= $total_trees ?></span>
+                    </div>
+                    <div class="stat-card-icon">
+                        <i class="fas fa-tree"></i>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-info">
+                        <span class="stat-card-label">Completed</span>
+                        <span class="stat-card-value" style="color: #166534;"><?= $completedCount ?></span>
+                    </div>
+                    <div class="stat-card-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-info">
+                        <span class="stat-card-label">Incomplete</span>
+                        <span class="stat-card-value" style="color: #92400e;"><?= $incompleteCount ?></span>
+                    </div>
+                    <div class="stat-card-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-info">
+                        <span class="stat-card-label">Completion Rate</span>
+                        <span class="stat-card-value"><?= $completionPercent ?>%</span>
+                    </div>
+                    <div class="stat-card-icon">
+                        <i class="fas fa-chart-simple"></i>
+                    </div>
+                </div>
             </div>
             <?php endif; ?>
 
             <!-- Data Table -->
             <div class="data-table-wrapper">
                 <?php if (empty($trees)): ?>
-                <div style="text-align: center; padding: 60px; color: #94a3b8;">No trees found. Upload data to get started.</div>
+                <div style="text-align: center; padding: 60px; color: #94a3b8;">
+                    <i class="fas fa-leaf" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
+                    <p>No trees found. Upload data to get started.</p>
+                </div>
                 <?php else: ?>
                 
                 <!-- Desktop Table -->
                 <div class="desktop-table">
                     <table class="data-table">
                         <thead>
-                            <tr><th>ID</th><th>Location</th><th>Height (m)</th><th>Crown Dia (m)</th><th>DBH (cm)</th><th>Biomass (kg)</th><th>Carbon (kg)</th><th>Status</th><th>Actions</th></tr>
-                        </thead>
+    <tr><th>NO</th><th>Tree ID</th><th>Height (m)</th><th>Crown Dia (m)</th><th>DBH (cm)</th><th>Biomass (kg)</th><th>Carbon (kg)</th><th>Status</th><th>Actions</th></tr>
+</thead>
                         <tbody>
                         <?php foreach ($trees as $t): ?>
-                        <tr>
-                            <td><strong>#<?= $t['id'] ?></strong></td>
-                            <td><?= !empty($t['tree_location']) ? htmlspecialchars($t['tree_location']) : '—' ?></td>
-                            <td><?= round($t['tree_height'], 2) ?></td>
-                            <td><?= round($t['crown_diameter'], 2) ?></td>
-                            <td><?= round($t['dbh'], 2) ?></td>
-                            <td><?= round($t['total_tree_biomass'], 2) ?></td>
-                            <td><?= round($t['carbon_stock'], 2) ?></td>
-                            <td><?= !empty($t['prepared_by']) ? '<span class="status-badge status-completed"><i class="fas fa-check-circle"></i> Completed</span>' : '<span class="status-badge status-incomplete"><i class="fas fa-clock"></i> Incomplete</span>' ?></td>
-                            <td>
-                                <div style="display: flex; gap: 6px;">
-                                    <a href="inspect.php?tree_id=<?= $t['id'] ?>&upload_id=<?= $active_upload_id ?>" class="btn btn-primary btn-sm" style="padding: 4px 10px;"><?= $t['insp_id'] ? 'Edit' : 'Inspect' ?></a>
-                                    <?php if ($t['insp_id']): ?>
-                                    <a href="print.php?id=<?= $t['insp_id'] ?>" class="btn btn-outline btn-sm" style="padding: 4px 10px;" target="_blank">Print</a>
-                                    <?php endif; ?>
-                                </div>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
+<tr>
+    <td><strong>#<?= $t['id'] ?></strong></td>
+    <td><?= !empty($t['tree_id']) ? htmlspecialchars($t['tree_id']) : '—' ?></td>
+    <td><?= round($t['tree_height'], 2) ?></td>
+    <td><?= round($t['crown_diameter'], 2) ?></td>
+    <td><?= round($t['dbh'], 2) ?></td>
+    <td><?= round($t['total_tree_biomass'], 2) ?></td>
+    <td><?= round($t['carbon_stock'], 2) ?></td>
+    <td><?= !empty($t['prepared_by']) ? '<span class="status-badge status-completed"><i class="fas fa-check-circle"></i> Completed</span>' : '<span class="status-badge status-incomplete"><i class="fas fa-clock"></i> Incomplete</span>' ?></td>
+    <td>
+        <div style="display: flex; gap: 6px;">
+            <a href="inspect.php?tree_no=<?= $t['id'] ?>&upload_id=<?= $active_upload_id ?>" class="btn btn-primary btn-sm"><?= $t['insp_id'] ? 'Edit' : 'Inspect' ?></a>
+            <?php if ($t['insp_id']): ?>
+            <a href="print.php?id=<?= $t['insp_id'] ?>" class="btn btn-outline btn-sm" target="_blank">Print</a>
+            <?php endif; ?>
+        </div>
+    </td>
+</tr>
+<?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>
@@ -1076,25 +1096,25 @@ $deleted = $_GET['deleted'] ?? '';
                 <div class="mobile-cards">
                     <?php foreach ($trees as $t): ?>
                     <div class="tree-card">
-                        <div class="tree-card-header">
-                            <strong>Tree #<?= $t['id'] ?></strong>
-                            <?= !empty($t['prepared_by']) ? '<span class="status-badge status-completed">Completed</span>' : '<span class="status-badge status-incomplete">Incomplete</span>' ?>
-                        </div>
-                        <div class="tree-details">
-                            <div><small>Location:</small><br><?= !empty($t['tree_location']) ? htmlspecialchars($t['tree_location']) : '—' ?></div>
-                            <div><small>Height:</small><br><?= round($t['tree_height'], 2) ?> m</div>
-                            <div><small>Crown Dia:</small><br><?= round($t['crown_diameter'], 2) ?> m</div>
-                            <div><small>DBH:</small><br><?= round($t['dbh'], 2) ?> cm</div>
-                            <div><small>Biomass:</small><br><?= round($t['total_tree_biomass'], 2) ?> kg</div>
-                            <div><small>Carbon:</small><br><?= round($t['carbon_stock'], 2) ?> kg</div>
-                        </div>
-                        <div class="tree-actions">
-                            <a href="inspect.php?tree_id=<?= $t['id'] ?>&upload_id=<?= $active_upload_id ?>" class="btn btn-primary btn-sm"><?= $t['insp_id'] ? 'Edit' : 'Inspect' ?></a>
-                            <?php if ($t['insp_id']): ?>
-                            <a href="print.php?id=<?= $t['insp_id'] ?>" class="btn btn-outline btn-sm" target="_blank">Print</a>
-                            <?php endif; ?>
-                        </div>
-                    </div>
+    <div class="tree-card-header">
+        <strong>Tree #<?= $t['id'] ?></strong>
+        <?= !empty($t['prepared_by']) ? '<span class="status-badge status-completed">Completed</span>' : '<span class="status-badge status-incomplete">Incomplete</span>' ?>
+    </div>
+    <div class="tree-details">
+        <div><small>Tree ID:</small><br><?= !empty($t['tree_id']) ? htmlspecialchars($t['tree_id']) : '—' ?></div>
+        <div><small>Height:</small><br><?= round($t['tree_height'], 2) ?> m</div>
+        <div><small>Crown Dia:</small><br><?= round($t['crown_diameter'], 2) ?> m</div>
+        <div><small>DBH:</small><br><?= round($t['dbh'], 2) ?> cm</div>
+        <div><small>Biomass:</small><br><?= round($t['total_tree_biomass'], 2) ?> kg</div>
+        <div><small>Carbon:</small><br><?= round($t['carbon_stock'], 2) ?> kg</div>
+    </div>
+    <div class="tree-actions">
+        <a href="inspect.php?tree_no=<?= $t['id'] ?>&upload_id=<?= $active_upload_id ?>" class="btn btn-primary btn-sm"><?= $t['insp_id'] ? 'Edit' : 'Inspect' ?></a>
+        <?php if ($t['insp_id']): ?>
+        <a href="print.php?id=<?= $t['insp_id'] ?>" class="btn btn-outline btn-sm" target="_blank">Print</a>
+        <?php endif; ?>
+    </div>
+</div>
                     <?php endforeach; ?>
                 </div>
 
@@ -1141,11 +1161,11 @@ $deleted = $_GET['deleted'] ?? '';
 </div>
 
 <!-- Modal -->
-<div id="deleteModal" class="modal">
-    <div class="modal-content">
-        <h3>Confirm Delete</h3>
+<div id="deleteModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+    <div style="background: white; padding: 24px; border-radius: 12px; max-width: 400px; width: 90%; text-align: center;">
+        <h3 style="margin-bottom: 16px;">Confirm Delete</h3>
         <p>Delete dataset "<span id="deleteUploadName"></span>"?</p>
-        <div class="modal-buttons">
+        <div style="display: flex; gap: 12px; justify-content: center; margin-top: 20px;">
             <button class="btn btn-danger" onclick="confirmDelete()">Delete</button>
             <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
         </div>
@@ -1213,6 +1233,14 @@ window.addEventListener('resize', function() {
         closeSidebar();
     }
 });
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('deleteModal');
+    if (event.target == modal) {
+        closeModal();
+    }
+}
 </script>
 </body>
 </html>

@@ -45,9 +45,9 @@ fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
 
 // Define headers
 $headers = [
-    'Tree ID', 'Height (m)', 'Crown Diameter (m)', 'DBH (cm)', 
+    'Tree ID', 'Inspection Tree ID', 'Height (m)', 'Crown Diameter (m)', 'DBH (cm)', 
     'Total Biomass (kg)', 'Carbon Stock (kg)', 'Inspection Status',
-    'Client Name', 'Client Address', 'Tree Location', 'Tree Species',
+    'Client Name', 'Tree Location', 'Tree Species',
     'Topography Flat', 'Topography Slope',
     'Site None', 'Site Grade Change', 'Site Clearing', 'Site Hydrology Change', 'Site Root Cuts',
     'Soil Limited', 'Soil Saturated', 'Soil Shallow', 'Soil Compacted', 'Soil Pavement', 'Soil Normal',
@@ -83,6 +83,7 @@ fputcsv($output, $headers);
 foreach ($data as $row) {
     $csvRow = [
         $row['id'],
+        $row['tree_id'] ?? '',  // New field
         $row['tree_height'],
         $row['crown_diameter'],
         $row['dbh'],
@@ -90,7 +91,6 @@ foreach ($data as $row) {
         $row['carbon_stock'],
         !empty($row['prepared_by']) ? 'Completed' : 'Incomplete',
         $row['client'] ?? '',
-        $row['client_address'] ?? '',
         $row['tree_location'] ?? '',
         $row['tree_species'] ?? '',
         $row['topography_flat'] ?? 0,
