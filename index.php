@@ -2,6 +2,34 @@
 require_once 'config/db.php';
 $pdo = db();
 
+// Safe rounding function to handle empty/null/string values
+function safeRound($value, $decimals = 2) {
+    if (empty($value) && $value !== 0 && $value !== '0') {
+        return '—';
+    }
+    $numericValue = floatval($value);
+    if ($numericValue == 0 && $value !== 0 && $value !== '0') {
+        return '—';
+    }
+    return round($numericValue, $decimals);
+}
+
+// Function to check if inspection is complete based on filled fields
+function isInspectionComplete($inspection) {
+    // Required fields that indicate a complete inspection
+    $requiredFields = [
+        'tree_id', 'tree_location', 'tree_species', 'client',
+        'dbh', 'height', 'crown_spread_dia', 'prepared_by'
+    ];
+    
+    foreach ($requiredFields as $field) {
+        if (empty($inspection[$field])) {
+            return false;
+        }
+    }
+    return true;
+}
+
 // Pagination settings
 $items_per_page = 50;
 $current_page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
@@ -39,7 +67,7 @@ $search_tree_id = isset($_GET['search_tree_id']) ? trim($_GET['search_tree_id'])
 $search_location = isset($_GET['search_location']) ? trim($_GET['search_location']) : '';
 $filter_status = isset($_GET['filter_status']) ? $_GET['filter_status'] : '';
 
-// Build WHERE conditions - change from location to tree_id
+// Build WHERE conditions
 $whereConditions = ["t.upload_id = ?"];
 $params = [$active_upload_id];
 
@@ -49,16 +77,39 @@ if ($search_tree_id !== '') {
 }
 
 if ($search_location !== '') {
-    // Search by tree_id in inspections table
     $whereConditions[] = "i.tree_id LIKE ?";
     $params[] = "%$search_location%";
 }
 
 if ($filter_status !== '') {
     if ($filter_status === 'completed') {
-        $whereConditions[] = "i.prepared_by IS NOT NULL AND i.prepared_by != ''";
+        $whereConditions[] = "EXISTS (
+            SELECT 1 FROM inspections i2 
+            WHERE i2.tree_no = t.id 
+            AND i2.upload_id = t.upload_id
+            AND i2.tree_id IS NOT NULL AND i2.tree_id != ''
+            AND i2.tree_location IS NOT NULL AND i2.tree_location != ''
+            AND i2.tree_species IS NOT NULL AND i2.tree_species != ''
+            AND i2.client IS NOT NULL AND i2.client != ''
+            AND i2.dbh IS NOT NULL AND i2.dbh != ''
+            AND i2.height IS NOT NULL AND i2.height != ''
+            AND i2.crown_spread_dia IS NOT NULL AND i2.crown_spread_dia != ''
+            AND i2.prepared_by IS NOT NULL AND i2.prepared_by != ''
+        )";
     } elseif ($filter_status === 'incomplete') {
-        $whereConditions[] = "(i.prepared_by IS NULL OR i.prepared_by = '')";
+        $whereConditions[] = "NOT EXISTS (
+            SELECT 1 FROM inspections i2 
+            WHERE i2.tree_no = t.id 
+            AND i2.upload_id = t.upload_id
+            AND i2.tree_id IS NOT NULL AND i2.tree_id != ''
+            AND i2.tree_location IS NOT NULL AND i2.tree_location != ''
+            AND i2.tree_species IS NOT NULL AND i2.tree_species != ''
+            AND i2.client IS NOT NULL AND i2.client != ''
+            AND i2.dbh IS NOT NULL AND i2.dbh != ''
+            AND i2.height IS NOT NULL AND i2.height != ''
+            AND i2.crown_spread_dia IS NOT NULL AND i2.crown_spread_dia != ''
+            AND i2.prepared_by IS NOT NULL AND i2.prepared_by != ''
+        )";
     }
 }
 
@@ -72,7 +123,7 @@ if ($active_upload_id) {
     $countSql = "
         SELECT COUNT(*) 
         FROM trees t 
-        LEFT JOIN inspections i ON i.tree_id = t.id AND i.upload_id = t.upload_id
+        LEFT JOIN inspections i ON i.tree_no = t.id AND i.upload_id = t.upload_id
         WHERE $whereClause
     ";
     $countStmt = $pdo->prepare($countSql);
@@ -84,9 +135,17 @@ if ($active_upload_id) {
             t.*, 
             i.insp_id, 
             i.prepared_by,
-            i.tree_location
+            i.preparer_name,
+            i.tree_id,
+            i.tree_location,
+            i.client,
+            i.tree_species,
+            i.dbh,
+            i.height,
+            i.crown_spread_dia,
+            i.tree_circumference
         FROM trees t 
-        LEFT JOIN inspections i ON i.tree_id = t.id AND i.upload_id = t.upload_id
+        LEFT JOIN inspections i ON i.tree_no = t.id AND i.upload_id = t.upload_id
         WHERE $whereClause
         ORDER BY t.id ASC
         LIMIT ? OFFSET ?
@@ -132,13 +191,11 @@ $deleted = $_GET['deleted'] ?? '';
             overflow-x: hidden;
         }
 
-        /* ========== LAYOUT ========== */
         .app-wrapper {
             display: flex;
             min-height: 100vh;
         }
 
-        /* ========== SIDEBAR ========== */
         .sidebar {
             width: 280px;
             background: #1e293b;
@@ -245,14 +302,12 @@ $deleted = $_GET['deleted'] ?? '';
             color: #94a3b8;
         }
 
-        /* ========== MAIN CONTENT ========== */
         .main-content {
             flex: 1;
             margin-left: 280px;
             min-height: 100vh;
         }
 
-        /* ========== TOP BAR ========== */
         .top-bar {
             background: white;
             border-bottom: 1px solid #e2e8f0;
@@ -277,12 +332,10 @@ $deleted = $_GET['deleted'] ?? '';
             margin-top: 2px;
         }
 
-        /* ========== CONTENT AREA ========== */
         .content-area {
             padding: 24px 32px;
         }
 
-        /* ========== CONTROL CARDS ========== */
         .control-card {
             background: white;
             border: 1px solid #e2e8f0;
@@ -305,7 +358,6 @@ $deleted = $_GET['deleted'] ?? '';
             color: #b91c1c;
         }
 
-        /* ========== FORM STYLES ========== */
         .form-row {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -345,72 +397,47 @@ $deleted = $_GET['deleted'] ?? '';
             box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.1);
         }
 
-        /* ========== FILTER BAR ========== */
-.filter-bar {
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    width: 100%;
-}
+        .filter-bar {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            width: 100%;
+        }
 
-.filter-group {
-    flex: 1;
-    min-width: 0;
-}
+        .filter-group {
+            flex: 1;
+            min-width: 0;
+        }
 
-.filter-group label {
-    display: block;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #64748b;
-    margin-bottom: 6px;
-}
+        .filter-group label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748b;
+            margin-bottom: 6px;
+        }
 
-.filter-group input,
-.filter-group select {
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    font-size: 13px;
-    font-family: 'Inter', sans-serif;
-    background: white;
-    box-sizing: border-box;
-}
+        .filter-group input,
+        .filter-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            background: white;
+            box-sizing: border-box;
+        }
 
-.filter-actions {
-    display: flex;
-    gap: 12px;
-    flex-shrink: 0;
-}
+        .filter-actions {
+            display: flex;
+            gap: 12px;
+            flex-shrink: 0;
+        }
 
-@media (max-width: 768px) {
-    .filter-bar {
-        flex-direction: column;
-        gap: 12px;
-    }
-    
-    .filter-group {
-        width: 100%;
-        min-width: auto;
-    }
-    
-    .filter-actions {
-        width: 100%;
-        flex-direction: column;
-        gap: 10px;
-    }
-    
-    .filter-actions .btn {
-        width: 100%;
-        justify-content: center;
-    }
-}
-
-        /* ========== BUTTONS ========== */
         .btn {
             display: inline-flex;
             align-items: center;
@@ -423,6 +450,7 @@ $deleted = $_GET['deleted'] ?? '';
             transition: all 0.2s;
             border: none;
             font-family: 'Inter', sans-serif;
+            text-decoration: none;
         }
 
         .btn-primary {
@@ -469,7 +497,15 @@ $deleted = $_GET['deleted'] ?? '';
             font-size: 11px;
         }
 
-        /* ========== DATA TABLE ========== */
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
         .data-table-wrapper {
             overflow-x: auto;
             border-radius: 12px;
@@ -525,7 +561,6 @@ $deleted = $_GET['deleted'] ?? '';
             color: #92400e;
         }
 
-        /* ========== STATS CARDS ========== */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -573,7 +608,6 @@ $deleted = $_GET['deleted'] ?? '';
             font-size: 24px;
         }
 
-        /* ========== DATASET BAR ========== */
         .dataset-bar {
             display: flex;
             justify-content: space-between;
@@ -607,7 +641,6 @@ $deleted = $_GET['deleted'] ?? '';
             color: #0f172a;
         }
 
-        /* ========== PAGINATION ========== */
         .pagination-container {
             display: flex;
             justify-content: space-between;
@@ -666,7 +699,6 @@ $deleted = $_GET['deleted'] ?? '';
             color: #94a3b8;
         }
 
-        /* ========== ALERTS ========== */
         .alert {
             padding: 12px 16px;
             border-radius: 8px;
@@ -688,7 +720,12 @@ $deleted = $_GET['deleted'] ?? '';
             color: #991b1b;
         }
 
-        /* ========== MOBILE ========== */
+        .action-buttons-cell {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
         @media (max-width: 768px) {
             .sidebar {
                 transform: translateX(-100%);
@@ -844,7 +881,6 @@ $deleted = $_GET['deleted'] ?? '';
 </head>
 <body>
 <div class="app-wrapper">
-    <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="sidebar-logo">
@@ -856,6 +892,22 @@ $deleted = $_GET['deleted'] ?? '';
             <a href="#" class="nav-item active">
                 <i class="fas fa-tree"></i>
                 <span>Tree Inventory</span>
+            </a>
+            <a href="#" class="nav-item">
+                <i class="fas fa-chart-line"></i>
+                <span>Analytics</span>
+            </a>
+            <a href="#" class="nav-item">
+                <i class="fas fa-file-alt"></i>
+                <span>Reports</span>
+            </a>
+            <a href="#" class="nav-item">
+                <i class="fas fa-database"></i>
+                <span>Datasets</span>
+            </a>
+            <a href="#" class="nav-item">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
             </a>
         </nav>
         <div class="sidebar-footer">
@@ -869,10 +921,8 @@ $deleted = $_GET['deleted'] ?? '';
         </div>
     </aside>
     
-    <!-- Sidebar Overlay for mobile -->
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
     
-    <!-- Main Content -->
     <main class="main-content">
         <div class="top-bar">
             <div style="display: flex; align-items: center; gap: 16px;">
@@ -887,7 +937,6 @@ $deleted = $_GET['deleted'] ?? '';
         </div>
 
         <div class="content-area">
-            <!-- Alerts -->
             <?php if ($msg === 'uploaded'): ?>
             <div class="alert alert-success">
                 <i class="fas fa-check-circle"></i>
@@ -910,7 +959,6 @@ $deleted = $_GET['deleted'] ?? '';
             </div>
             <?php endif; ?>
 
-            <!-- Upload Card -->
             <div class="control-card">
                 <div class="control-card-title">
                     <i class="fas fa-cloud-upload-alt"></i> Import New Dataset
@@ -939,7 +987,6 @@ $deleted = $_GET['deleted'] ?? '';
                 </form>
             </div>
 
-            <!-- Dataset Management -->
             <?php if (!empty($uploads) && $active_upload_id): ?>
             <div class="control-card">
                 <div class="control-card-title">
@@ -968,46 +1015,45 @@ $deleted = $_GET['deleted'] ?? '';
             </div>
             <?php endif; ?>
 
-            <!-- Filter Section -->
             <?php if ($active_upload_id): ?>
-            <!-- Filter Section - Updated -->
-<div class="control-card">
-    <div class="control-card-title">
-        <i class="fas fa-filter"></i> Filter Records
-    </div>
-    <form method="GET">
-        <input type="hidden" name="upload_id" value="<?= $active_upload_id ?>">
-        <div class="filter-bar">
-    <div class="filter-group">
-        <label>NO</label>
-        <input type="text" name="search_tree_id" placeholder="Enter Tree ID" value="<?= htmlspecialchars($search_tree_id) ?>">
-    </div>
-    <div class="filter-group">
-        <label>Tree ID</label>
-        <input type="text" name="search_location" placeholder="Enter Inspection Tree ID" value="<?= htmlspecialchars($search_location) ?>">
-    </div>
-    <div class="filter-group">
-        <label>Status</label>
-        <select name="filter_status">
-            <option value="">All</option>
-            <option value="completed" <?= $filter_status === 'completed' ? 'selected' : '' ?>>Completed</option>
-            <option value="incomplete" <?= $filter_status === 'incomplete' ? 'selected' : '' ?>>Incomplete</option>
-        </select>
-    </div>
-    <div class="filter-actions">
-        <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Apply</button>
-        <a href="?upload_id=<?= $active_upload_id ?>" class="btn btn-outline">Reset</a>
-    </div>
-</div>
-    </form>
-</div>
+            <div class="control-card">
+                <div class="control-card-title">
+                    <i class="fas fa-filter"></i> Filter Records
+                </div>
+                <form method="GET">
+                    <input type="hidden" name="upload_id" value="<?= $active_upload_id ?>">
+                    <div class="filter-bar">
+                        <div class="filter-group">
+                            <label>Tree ID (Database)</label>
+                            <input type="text" name="search_tree_id" placeholder="Enter Tree ID" value="<?= htmlspecialchars($search_tree_id) ?>">
+                        </div>
+                        <div class="filter-group">
+                            <label>Tree ID (Inspection)</label>
+                            <input type="text" name="search_location" placeholder="Enter Inspection Tree ID" value="<?= htmlspecialchars($search_location) ?>">
+                        </div>
+                        <div class="filter-group">
+                            <label>Status</label>
+                            <select name="filter_status">
+                                <option value="">All</option>
+                                <option value="completed" <?= $filter_status === 'completed' ? 'selected' : '' ?>>Completed</option>
+                                <option value="incomplete" <?= $filter_status === 'incomplete' ? 'selected' : '' ?>>Incomplete</option>
+                            </select>
+                        </div>
+                        <div class="filter-actions">
+                            <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Apply</button>
+                            <a href="?upload_id=<?= $active_upload_id ?>" class="btn btn-outline">Reset</a>
+                        </div>
+                    </div>
+                </form>
+            </div>
             <?php endif; ?>
 
-            <!-- Statistics Cards -->
             <?php if ($total_trees > 0): 
                 $completedCount = 0;
                 foreach ($trees as $t) {
-                    if (!empty($t['prepared_by'])) $completedCount++;
+                    if (!empty($t['insp_id']) && isInspectionComplete($t)) {
+                        $completedCount++;
+                    }
                 }
                 $incompleteCount = $total_trees - $completedCount;
                 $completionPercent = $total_trees > 0 ? round(($completedCount / $total_trees) * 100) : 0;
@@ -1052,7 +1098,6 @@ $deleted = $_GET['deleted'] ?? '';
             </div>
             <?php endif; ?>
 
-            <!-- Data Table -->
             <div class="data-table-wrapper">
                 <?php if (empty($trees)): ?>
                 <div style="text-align: center; padding: 60px; color: #94a3b8;">
@@ -1061,64 +1106,69 @@ $deleted = $_GET['deleted'] ?? '';
                 </div>
                 <?php else: ?>
                 
-                <!-- Desktop Table -->
                 <div class="desktop-table">
                     <table class="data-table">
                         <thead>
-    <tr><th>NO</th><th>Tree ID</th><th>Height (m)</th><th>Crown Dia (m)</th><th>DBH (cm)</th><th>Biomass (kg)</th><th>Carbon (kg)</th><th>Status</th><th>Actions</th></tr>
-</thead>
+                            <tr><th>ID</th><th>Inspection Tree ID</th><th>Location</th><th>Height (m)</th><th>Crown Dia (m)</th><th>DBH (cm)</th><th>Biomass (kg)</th><th>Carbon (kg)</th><th>Status</th><th>Actions</th></tr>
+                        </thead>
                         <tbody>
-                        <?php foreach ($trees as $t): ?>
-<tr>
-    <td><strong>#<?= $t['id'] ?></strong></td>
-    <td><?= !empty($t['tree_id']) ? htmlspecialchars($t['tree_id']) : '—' ?></td>
-    <td><?= round($t['tree_height'], 2) ?></td>
-    <td><?= round($t['crown_diameter'], 2) ?></td>
-    <td><?= round($t['dbh'], 2) ?></td>
-    <td><?= round($t['total_tree_biomass'], 2) ?></td>
-    <td><?= round($t['carbon_stock'], 2) ?></td>
-    <td><?= !empty($t['prepared_by']) ? '<span class="status-badge status-completed"><i class="fas fa-check-circle"></i> Completed</span>' : '<span class="status-badge status-incomplete"><i class="fas fa-clock"></i> Incomplete</span>' ?></td>
-    <td>
-        <div style="display: flex; gap: 6px;">
-            <a href="inspect.php?tree_no=<?= $t['id'] ?>&upload_id=<?= $active_upload_id ?>" class="btn btn-primary btn-sm"><?= $t['insp_id'] ? 'Edit' : 'Inspect' ?></a>
-            <?php if ($t['insp_id']): ?>
-            <a href="print.php?id=<?= $t['insp_id'] ?>" class="btn btn-outline btn-sm" target="_blank">Print</a>
-            <?php endif; ?>
-        </div>
-    </td>
-</tr>
-<?php endforeach; ?>
+                        <?php foreach ($trees as $t): 
+                            $hasInspection = !empty($t['insp_id']);
+                            $isComplete = ($hasInspection && isInspectionComplete($t));
+                        ?>
+                        <tr>
+                            <td><strong>#<?= $t['id'] ?></strong></td>
+                            <td><?= !empty($t['tree_id']) ? htmlspecialchars($t['tree_id']) : '—' ?></td>
+                            <td><?= !empty($t['tree_location']) ? htmlspecialchars($t['tree_location']) : '—' ?></td>
+                            <td><?= safeRound($t['tree_height']) ?></td>
+                            <td><?= safeRound($t['crown_diameter']) ?></td>
+                            <td><?= safeRound($t['dbh']) ?></td>
+                            <td><?= safeRound($t['total_tree_biomass']) ?></td>
+                            <td><?= safeRound($t['carbon_stock']) ?></td>
+                            <td><?= $isComplete ? '<span class="status-badge status-completed"><i class="fas fa-check-circle"></i> Completed</span>' : '<span class="status-badge status-incomplete"><i class="fas fa-clock"></i> Incomplete</span>' ?></td>
+                            <td>
+                                <div class="action-buttons-cell">
+                                    <a href="inspect.php?tree_no=<?= $t['id'] ?>&upload_id=<?= $active_upload_id ?>" class="btn btn-primary btn-sm"><i class="fas fa-edit"></i> <?= $hasInspection ? 'Edit' : 'Inspect' ?></a>
+                                    <?php if ($hasInspection): ?>
+                                    <a href="print.php?id=<?= $t['insp_id'] ?>" class="btn btn-success btn-sm" target="_blank"><i class="fas fa-print"></i> Print</a>
+                                    <?php endif; ?>
+                                </div>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>
 
-                <!-- Mobile Cards -->
                 <div class="mobile-cards">
-                    <?php foreach ($trees as $t): ?>
+                    <?php foreach ($trees as $t): 
+                        $hasInspection = !empty($t['insp_id']);
+                        $isComplete = ($hasInspection && isInspectionComplete($t));
+                    ?>
                     <div class="tree-card">
-    <div class="tree-card-header">
-        <strong>Tree #<?= $t['id'] ?></strong>
-        <?= !empty($t['prepared_by']) ? '<span class="status-badge status-completed">Completed</span>' : '<span class="status-badge status-incomplete">Incomplete</span>' ?>
-    </div>
-    <div class="tree-details">
-        <div><small>Tree ID:</small><br><?= !empty($t['tree_id']) ? htmlspecialchars($t['tree_id']) : '—' ?></div>
-        <div><small>Height:</small><br><?= round($t['tree_height'], 2) ?> m</div>
-        <div><small>Crown Dia:</small><br><?= round($t['crown_diameter'], 2) ?> m</div>
-        <div><small>DBH:</small><br><?= round($t['dbh'], 2) ?> cm</div>
-        <div><small>Biomass:</small><br><?= round($t['total_tree_biomass'], 2) ?> kg</div>
-        <div><small>Carbon:</small><br><?= round($t['carbon_stock'], 2) ?> kg</div>
-    </div>
-    <div class="tree-actions">
-        <a href="inspect.php?tree_no=<?= $t['id'] ?>&upload_id=<?= $active_upload_id ?>" class="btn btn-primary btn-sm"><?= $t['insp_id'] ? 'Edit' : 'Inspect' ?></a>
-        <?php if ($t['insp_id']): ?>
-        <a href="print.php?id=<?= $t['insp_id'] ?>" class="btn btn-outline btn-sm" target="_blank">Print</a>
-        <?php endif; ?>
-    </div>
-</div>
+                        <div class="tree-card-header">
+                            <strong>Tree #<?= $t['id'] ?></strong>
+                            <?= $isComplete ? '<span class="status-badge status-completed">Completed</span>' : '<span class="status-badge status-incomplete">Incomplete</span>' ?>
+                        </div>
+                        <div class="tree-details">
+                            <div><small>Inspection Tree ID:</small><br><?= !empty($t['tree_id']) ? htmlspecialchars($t['tree_id']) : '—' ?></div>
+                            <div><small>Location:</small><br><?= !empty($t['tree_location']) ? htmlspecialchars($t['tree_location']) : '—' ?></div>
+                            <div><small>Height:</small><br><?= safeRound($t['tree_height']) ?> m</div>
+                            <div><small>Crown Dia:</small><br><?= safeRound($t['crown_diameter']) ?> m</div>
+                            <div><small>DBH:</small><br><?= safeRound($t['dbh']) ?> cm</div>
+                            <div><small>Biomass:</small><br><?= safeRound($t['total_tree_biomass']) ?> kg</div>
+                            <div><small>Carbon:</small><br><?= safeRound($t['carbon_stock']) ?> kg</div>
+                        </div>
+                        <div class="tree-actions">
+                            <a href="inspect.php?tree_no=<?= $t['id'] ?>&upload_id=<?= $active_upload_id ?>" class="btn btn-primary btn-sm"><i class="fas fa-edit"></i> <?= $hasInspection ? 'Edit' : 'Inspect' ?></a>
+                            <?php if ($hasInspection): ?>
+                            <a href="print.php?id=<?= $t['insp_id'] ?>" class="btn btn-success btn-sm" target="_blank"><i class="fas fa-print"></i> Print</a>
+                            <?php endif; ?>
+                        </div>
+                    </div>
                     <?php endforeach; ?>
                 </div>
 
-                <!-- Pagination -->
                 <?php if ($total_pages > 1): ?>
                 <div class="pagination-container">
                     <div class="pagination">
@@ -1160,7 +1210,6 @@ $deleted = $_GET['deleted'] ?? '';
     </main>
 </div>
 
-<!-- Modal -->
 <div id="deleteModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
     <div style="background: white; padding: 24px; border-radius: 12px; max-width: 400px; width: 90%; text-align: center;">
         <h3 style="margin-bottom: 16px;">Confirm Delete</h3>
@@ -1226,15 +1275,12 @@ function confirmDelete() {
     }
 }
 
-// Close sidebar when clicking outside (handled by overlay)
-// Also close sidebar when window is resized to desktop size
 window.addEventListener('resize', function() {
     if (window.innerWidth > 768) {
         closeSidebar();
     }
 });
 
-// Close modal when clicking outside
 window.onclick = function(event) {
     const modal = document.getElementById('deleteModal');
     if (event.target == modal) {

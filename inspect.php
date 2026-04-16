@@ -122,6 +122,21 @@ function yn($d, $k, $val) {
     }
     return ($current === $val) ? 'checked' : ''; 
 }
+// Function to check if inspection is complete
+function isInspectionComplete($data) {
+    // Required fields for completion
+    $requiredFields = [
+        'tree_id', 'tree_location', 'tree_species', 'client',
+        'dbh', 'height', 'crown_spread_dia'
+    ];
+    
+    foreach ($requiredFields as $field) {
+        if (empty($data[$field])) {
+            return false;
+        }
+    }
+    return true;
+}
 
 $pre_dbh = v($d, 'dbh') ?: ($tree['dbh'] ?? '');
 $pre_height = v($d, 'height') ?: ($tree['tree_height'] ?? '');

@@ -406,7 +406,7 @@ function formatMeasurement($value, $unit, $default = '______') {
             <span class="yn-pair">YES <?= ynBox($tree, 'cavity_crown', 'YES') ?></span>
             <span class="yn-pair">NO <?= ynBox($tree, 'cavity_crown', 'NO') ?></span>
             <?php if (!empty($tree['cavity_crown_pct'])): ?>
-            <span>% CIRC. <?= val($tree, 'cavity_crown_pct') ?></span>
+            <span> <?= val($tree, 'cavity_crown_pct') ?>% CIRC.</span>
             <?php endif; ?>
         </div>
     </div>
@@ -442,7 +442,7 @@ function formatMeasurement($value, $unit, $default = '______') {
             <span class="yn-pair">YES <?= ynBox($tree, 'cavity_trunk', 'YES') ?></span>
             <span class="yn-pair">NO <?= ynBox($tree, 'cavity_trunk', 'NO') ?></span>
             <?php if (!empty($tree['cavity_trunk_pct'])): ?>
-            <span>% CIRC. <?= val($tree, 'cavity_trunk_pct') ?></span>
+            <span> <?= val($tree, 'cavity_trunk_pct') ?>% CIRC.</span>
             <?php endif; ?>
         </div>
     </div>
@@ -490,7 +490,7 @@ function formatMeasurement($value, $unit, $default = '______') {
             <span class="yn-pair">YES <?= ynBox($tree, 'cavity_root', 'YES') ?></span>
             <span class="yn-pair">NO <?= ynBox($tree, 'cavity_root', 'NO') ?></span>
             <?php if (!empty($tree['cavity_root_pct'])): ?>
-            <span>% CIRC. <?= val($tree, 'cavity_root_pct') ?></span>
+            <span> <?= val($tree, 'cavity_root_pct') ?>% CIRC.</span>
             <?php endif; ?>
         </div>
     </div>
