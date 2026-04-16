@@ -1,5 +1,6 @@
 <?php
 require_once 'config/db.php';
+require_once 'config/settings.php';
 $pdo = db();
 
 $tree_no = intval($_GET['tree_no'] ?? 0);
@@ -122,21 +123,6 @@ function yn($d, $k, $val) {
     }
     return ($current === $val) ? 'checked' : ''; 
 }
-// Function to check if inspection is complete
-function isInspectionComplete($data) {
-    // Required fields for completion
-    $requiredFields = [
-        'tree_id', 'tree_location', 'tree_species', 'client',
-        'dbh', 'height', 'crown_spread_dia'
-    ];
-    
-    foreach ($requiredFields as $field) {
-        if (empty($data[$field])) {
-            return false;
-        }
-    }
-    return true;
-}
 
 $pre_dbh = v($d, 'dbh') ?: ($tree['dbh'] ?? '');
 $pre_height = v($d, 'height') ?: ($tree['tree_height'] ?? '');
@@ -146,6 +132,8 @@ $pre_tree_id = v($d, 'tree_id');
 $pre_location = v($d, 'tree_location');
 $pre_species = v($d, 'tree_species');
 $pre_circumf = v($d, 'tree_circumference');
+$pre_preparer_name = v($d, 'preparer_name') ?: $settings['default_preparer_name'];
+$pre_prepared_by = v($d, 'prepared_by') ;
 ?>
 
 <!DOCTYPE html>
@@ -291,6 +279,11 @@ $pre_circumf = v($d, 'tree_circumference');
             box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.1);
         }
 
+        .field small {
+            color: #64748b;
+            font-size: 10px;
+        }
+
         .checkbox-group {
             display: flex;
             flex-wrap: wrap;
@@ -369,26 +362,10 @@ $pre_circumf = v($d, 'tree_circumference');
             color: #334155;
         }
 
-        .defect-item-with-pct {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 12px;
-            background: #f8fafc;
-            border-radius: 8px;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .defect-item-with-pct span {
-            font-size: 13px;
-            font-weight: 500;
-            color: #334155;
-        }
-
         .pct-field {
             min-width: 100px;
         }
+        
         .pct-field input {
             width: 80px;
             padding: 6px 8px;
@@ -969,11 +946,12 @@ $pre_circumf = v($d, 'tree_circumference');
             <div class="form-grid">
                 <div class="field">
                     <label>Signature / Title</label>
-                    <input type="text" name="prepared_by" value="<?= v($d,'prepared_by') ?>" placeholder="e.g., Certified Arborist">
+                    <input type="text" name="prepared_by" value="<?= htmlspecialchars($pre_prepared_by) ?>" placeholder="e.g., Certified Arborist">
                 </div>
                 <div class="field">
                     <label>Name</label>
-                    <input type="text" name="preparer_name" value="<?= v($d,'preparer_name') ?>" placeholder="Full name">
+                    <input type="text" name="preparer_name" value="<?= htmlspecialchars($pre_preparer_name) ?>" placeholder="Full name">
+                    <small>Default: <?= htmlspecialchars($settings['default_preparer_name']) ?></small>
                 </div>
             </div>
         </div>
