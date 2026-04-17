@@ -79,16 +79,16 @@ function formatMeasurement($value, $unit, $default = '______') {
         .btn-back { background:#6b7280; color:#fff; }
 
         .form {
-    width: 210mm;
-    margin: 0 auto;
-    padding: 8mm 10mm;
-    background: #fff;
-    page-break-after: always;
-}
-
-.form:last-child {
-    page-break-after: auto;
-}
+            width: 210mm;
+            margin: 0 auto;
+            padding: 8mm 10mm;
+            background: #fff;
+            page-break-after: always;
+        }
+        
+        .form:last-child {
+            page-break-after: auto;
+        }
 
         .title {
             text-align:center;
@@ -96,32 +96,6 @@ function formatMeasurement($value, $unit, $default = '______') {
             font-weight:bold;
             text-decoration:underline;
             margin-bottom:8px;
-        }
-
-        .inspection-page {
-            page-break-after: always;
-            margin-bottom:20px;
-        }
-
-        .inspection-page:last-child {
-            page-break-after: auto;
-        }
-
-        hr { border:none; border-top:1px solid #000; margin:5px 0; }
-
-        .sec {
-            text-align:center;
-            font-weight:bold;
-            text-decoration:underline;
-            font-size:11px;
-            margin:8px 0 5px;
-        }
-        
-        .subsec {
-            text-align:center;
-            font-style:italic;
-            margin:5px 0 4px;
-            font-size:9.5px;
         }
 
         .row {
@@ -132,26 +106,28 @@ function formatMeasurement($value, $unit, $default = '______') {
             flex-wrap:wrap;
         }
 
-        .lbl {
-            font-weight:bold;
-            white-space:nowrap;
-            font-size:9.5px;
-            min-width:90px;
-        }
-        
+        .lbl  { font-weight:bold; white-space:nowrap; font-size:9.5px; min-width:90px; }
         .lbl-auto { min-width: auto; margin-right: 5px; }
-        
-        .val {
-            border-bottom:1px solid #000;
-            min-width:60px;
-            padding:0 3px;
-            font-size:9px;
-            display:inline-block;
+        .val  { border-bottom:1px solid #000; min-width:60px; padding:0 3px; font-size:9px; display:inline-block; }
+        .val-md  { min-width:100px; }
+        .val-lg  { min-width:150px; }
+        .val-xl  { min-width:200px; }
+
+        hr { border:none; border-top:1px solid #000; margin:5px 0; }
+
+        .sec {
+            text-align:center;
+            font-weight:bold;
+            text-decoration:underline;
+            font-size:11px;
+            margin:8px 0 5px;
         }
-        
-        .val-md { min-width:100px; }
-        .val-lg { min-width:150px; }
-        .val-xl { min-width:200px; }
+        .subsec {
+            text-align:center;
+            font-style:italic;
+            margin:5px 0 4px;
+            font-size:9.5px;
+        }
 
         .inline {
             display:inline-flex;
@@ -176,29 +152,13 @@ function formatMeasurement($value, $unit, $default = '______') {
             margin-bottom:6px;
         }
 
-        .mit-table {
-            width:100%;
-            border-collapse:collapse;
-            margin-top:4px;
-        }
-        
-        .mit-table th, .mit-table td {
-            border:1px solid #aaa;
-            padding:3px 6px;
-            font-size:9px;
-            text-align:center;
-        }
-        
+        .mit-table { width:100%; border-collapse:collapse; margin-top:4px; }
+        .mit-table th, .mit-table td { border:1px solid #aaa; padding:3px 6px; font-size:9px; text-align:center; }
         .mit-table td:first-child { text-align:left; }
 
-        .prep-line {
-            border-top:2px solid #000;
-            min-width:200px;
-            margin-top:30px;
-            padding-top:8px;
+        .signature-section {
+            margin-top: 20px;
         }
-
-        .signature-section { margin-top: 20px; }
 
         .notes-section {
             margin: 8px 0;
@@ -220,16 +180,16 @@ function formatMeasurement($value, $unit, $default = '______') {
         }
 
         @media print {
-    .no-print { display:none !important; }
-    body { font-size:9px; }
-    @page { size: A4; margin: 8mm; }
-    .form {
-        page-break-after: always;
-    }
-    .form:last-child {
-        page-break-after: auto;
-    }
-}
+            .no-print { display:none !important; }
+            body { font-size:9px; }
+            @page { size:A4; margin:8mm; }
+            .form {
+                page-break-after: always;
+            }
+            .form:last-child {
+                page-break-after: auto;
+            }
+        }
     </style>
 </head>
 <body>
@@ -243,7 +203,6 @@ function formatMeasurement($value, $unit, $default = '______') {
 <?php foreach ($trees as $tree): 
     // Use default values if inspection doesn't exist or fields are empty
     $display_preparer_name = !empty($tree['preparer_name']) ? $tree['preparer_name'] : $settings['default_preparer_name'];
-
 ?>
 <div class="form">
     <div class="title">TREE INSPECTION FORM</div>
@@ -427,7 +386,7 @@ function formatMeasurement($value, $unit, $default = '______') {
             <span class="yn-pair">YES <?= ynBox($tree, 'cavity_crown', 'YES') ?></span>
             <span class="yn-pair">NO <?= ynBox($tree, 'cavity_crown', 'NO') ?></span>
             <?php if (!empty($tree['cavity_crown_pct'])): ?>
-            <span>% CIRC. <?= val($tree, 'cavity_crown_pct') ?></span>
+            <span><?= val($tree, 'cavity_crown_pct') ?>% CIRC.</span>
             <?php endif; ?>
         </div>
     </div>
@@ -463,7 +422,7 @@ function formatMeasurement($value, $unit, $default = '______') {
             <span class="yn-pair">YES <?= ynBox($tree, 'cavity_trunk', 'YES') ?></span>
             <span class="yn-pair">NO <?= ynBox($tree, 'cavity_trunk', 'NO') ?></span>
             <?php if (!empty($tree['cavity_trunk_pct'])): ?>
-            <span>% CIRC. <?= val($tree, 'cavity_trunk_pct') ?></span>
+            <span><?= val($tree, 'cavity_trunk_pct') ?>% CIRC.</span>
             <?php endif; ?>
         </div>
     </div>
@@ -511,7 +470,7 @@ function formatMeasurement($value, $unit, $default = '______') {
             <span class="yn-pair">YES <?= ynBox($tree, 'cavity_root', 'YES') ?></span>
             <span class="yn-pair">NO <?= ynBox($tree, 'cavity_root', 'NO') ?></span>
             <?php if (!empty($tree['cavity_root_pct'])): ?>
-            <span>% CIRC. <?= val($tree, 'cavity_root_pct') ?></span>
+            <span><?= val($tree, 'cavity_root_pct') ?>% CIRC.</span>
             <?php endif; ?>
         </div>
     </div>
@@ -566,12 +525,13 @@ function formatMeasurement($value, $unit, $default = '______') {
             </table>
         </div>
         <div class="signature-section">
-    <div style="font-weight:bold;text-decoration:underline;font-size:10px; margin-bottom:70px;">PREPARED BY</div>
-    <div>
-        <div style="border-top: 1px solid #000; width: 100%;"></div>
-        <div style="font-size:11px; font-weight:bold; margin-top:5px;"><?= htmlspecialchars($display_preparer_name) ?></div>
+            <div style="font-weight:bold;text-decoration:underline;margin-bottom:70px;font-size:10px">PREPARED BY</div>
+            <div>
+                <div style="border-top: 1px solid #000; width: 100%;"></div>
+                <div style="font-size:11px; font-weight:bold; margin-top:8px;"><?= htmlspecialchars($display_preparer_name) ?></div>
+            </div>
+        </div>
     </div>
-</div>
 </div>
 <?php endforeach; ?>
 </body>

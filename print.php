@@ -515,13 +515,12 @@ function formatMeasurement($value, $unit, $default = '______') {
       </table>
     </div>
     <div class="signature-section">
-    <div style="font-weight:bold;text-decoration:underline;font-size:10px; margin-bottom:70px;">PREPARED BY</div>
-    <div>
-        <div style="border-top: 1px solid #000; width: 100%;"></div>
-        <div style="font-size:11px; font-weight:bold; margin-top:5px;"><?= htmlspecialchars($display_preparer_name) ?></div>
+      <div style="font-weight:bold;text-decoration:underline;font-size:10px; margin-bottom:70px;">PREPARED BY</div>
+        <div>
+          <div style="border-top: 1px solid #000; width: 100%;"></div>
+          <div style="font-size:11px; font-weight:bold; margin-top:5px;"><?= htmlspecialchars($display_preparer_name) ?></div>
+        </div>
+      </div>
     </div>
-</div>
-
-</div>
 </body>
 </html>
