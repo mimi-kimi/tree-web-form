@@ -227,7 +227,7 @@ function formatMeasurement($value, $unit, $default = '______') {
 <?php foreach ($trees as $tree): 
     // Use default values if inspection doesn't exist or fields are empty
     $display_preparer_name = !empty($tree['preparer_name']) ? $tree['preparer_name'] : $settings['default_preparer_name'];
-    $display_prepared_by = !empty($tree['prepared_by']) ? $tree['prepared_by'] : $settings['default_preparer_title'];
+    
 ?>
 <div class="form">
     <div class="title">TREE INSPECTION FORM</div>
