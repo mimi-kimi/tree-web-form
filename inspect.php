@@ -1,6 +1,79 @@
 <?php
 require_once 'config/db.php';
 require_once 'config/settings.php';
+require_once 'config/auth.php';
+$pdo = db();
+
+requireLogin();
+
+$tree_no = intval($_GET['tree_no'] ?? 0);
+$upload_id = intval($_GET['upload_id'] ?? 0);
+
+if (!$tree_no) { 
+    header('Location: index.php'); 
+    exit; 
+}
+
+// Check if inspection is locked by another user
+$lockInfo = acquireLock($tree_no, $upload_id, $_SESSION['user_id']);
+if (is_array($lockInfo)) {
+    // Locked by someone else - show message
+    ?>
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Record Locked</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+        <style>
+            body {
+                font-family: 'Inter', sans-serif;
+                background: #f1f5f9;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+            }
+            .lock-message {
+                background: white;
+                padding: 40px;
+                border-radius: 16px;
+                text-align: center;
+                max-width: 500px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }
+            .lock-message i {
+                font-size: 64px;
+                color: #b91c1c;
+                margin-bottom: 20px;
+            }
+            .btn {
+                display: inline-block;
+                padding: 10px 20px;
+                background: #b91c1c;
+                color: white;
+                text-decoration: none;
+                border-radius: 8px;
+                margin-top: 20px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="lock-message">
+            <i>🔒</i>
+            <h2>Record Currently Being Edited</h2>
+            <p>This inspection is currently being edited by:<br>
+            <strong><?= htmlspecialchars($lockInfo['full_name']) ?></strong> (<?= htmlspecialchars($lockInfo['username']) ?>)</p>
+            <p><small>Locked since: <?= $lockInfo['locked_at'] ?></small></p>
+            <a href="index.php?upload_id=<?= $upload_id ?>" class="btn">Back to List</a>
+        </div>
+    </body>
+    </html>
+    <?php
+    exit;
+}
+<?php
+require_once 'config/db.php';
+require_once 'config/settings.php';
 $pdo = db();
 
 $tree_no = intval($_GET['tree_no'] ?? 0);
@@ -1019,6 +1092,15 @@ document.querySelectorAll('.priority-btn').forEach(btn => {
             if (hiddenInput) hiddenInput.value = priority;
         }
     });
+});
+setInterval(function() {
+    fetch('renew_lock.php?tree_no=<?= $tree_no ?>&upload_id=<?= $upload_id ?>')
+        .catch(err => console.log('Lock renewal failed'));
+}, 120000);
+
+// Release lock when leaving page
+window.addEventListener('beforeunload', function() {
+    navigator.sendBeacon('release_lock.php?tree_no=<?= $tree_no ?>&upload_id=<?= $upload_id ?>');
 });
 </script>
 </body>
