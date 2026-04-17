@@ -4,6 +4,7 @@ require_once 'config/settings.php';
 require_once 'config/auth.php';
 $pdo = db();
 
+// Require login for access
 requireLogin();
 
 $tree_no = intval($_GET['tree_no'] ?? 0);
@@ -17,7 +18,7 @@ if (!$tree_no) {
 // Check if inspection is locked by another user
 $lockInfo = acquireLock($tree_no, $upload_id, $_SESSION['user_id']);
 if (is_array($lockInfo)) {
-    // Locked by someone else - show message
+    // Locked by someone else - show message and exit
     ?>
     <!DOCTYPE html>
     <html>
@@ -70,18 +71,6 @@ if (is_array($lockInfo)) {
     </html>
     <?php
     exit;
-}
-<?php
-require_once 'config/db.php';
-require_once 'config/settings.php';
-$pdo = db();
-
-$tree_no = intval($_GET['tree_no'] ?? 0);
-$upload_id = intval($_GET['upload_id'] ?? 0);
-
-if (!$tree_no) { 
-    header('Location: index.php'); 
-    exit; 
 }
 
 // Load the tree details
@@ -206,7 +195,7 @@ $pre_location = v($d, 'tree_location');
 $pre_species = v($d, 'tree_species');
 $pre_circumf = v($d, 'tree_circumference');
 $pre_preparer_name = v($d, 'preparer_name') ?: $settings['default_preparer_name'];
-$pre_prepared_by = v($d, 'prepared_by') ;
+$pre_prepared_by = v($d, 'prepared_by') ?: $settings['default_preparer_title'];
 ?>
 
 <!DOCTYPE html>
@@ -1041,6 +1030,17 @@ $pre_prepared_by = v($d, 'prepared_by') ;
 </div>
 
 <script>
+// Auto-renew lock every 2 minutes while editing
+setInterval(function() {
+    fetch('renew_lock.php?tree_no=<?= $tree_no ?>&upload_id=<?= $upload_id ?>')
+        .catch(err => console.log('Lock renewal failed'));
+}, 120000);
+
+// Release lock when leaving page
+window.addEventListener('beforeunload', function() {
+    navigator.sendBeacon('release_lock.php?tree_no=<?= $tree_no ?>&upload_id=<?= $upload_id ?>');
+});
+
 // Radio button toggle functionality (allow unchecking)
 document.querySelectorAll('input[type="radio"]').forEach(radio => {
     if (radio.checked) {
@@ -1092,15 +1092,6 @@ document.querySelectorAll('.priority-btn').forEach(btn => {
             if (hiddenInput) hiddenInput.value = priority;
         }
     });
-});
-setInterval(function() {
-    fetch('renew_lock.php?tree_no=<?= $tree_no ?>&upload_id=<?= $upload_id ?>')
-        .catch(err => console.log('Lock renewal failed'));
-}, 120000);
-
-// Release lock when leaving page
-window.addEventListener('beforeunload', function() {
-    navigator.sendBeacon('release_lock.php?tree_no=<?= $tree_no ?>&upload_id=<?= $upload_id ?>');
 });
 </script>
 </body>
