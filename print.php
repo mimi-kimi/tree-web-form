@@ -23,10 +23,10 @@ $display_preparer_name = !empty($d['preparer_name']) ? $d['preparer_name'] : $se
 $display_prepared_by = !empty($d['prepared_by']) ? $d['prepared_by'] : $settings['default_preparer_title'];
 
 function val($d, $k) { return htmlspecialchars($d[$k] ?? ''); }
-function box($d, $k) { return !empty($d[$k]) ? '☑' : '☐'; }
+function box($d, $k) { return !empty($d[$k]) ? '■' : '☐'; }
 function ynBox($d, $k, $compare) { 
     $value = $d[$k] ?? 'NO';
-    return ($value === $compare) ? '☑' : '☐';
+    return ($value === $compare) ? '◼' : '☐';
 }
 
 // Format measurement with units

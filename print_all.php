@@ -33,10 +33,10 @@ $stmt->execute([$upload_id]);
 $trees = $stmt->fetchAll();
 
 function val($d, $k) { return htmlspecialchars($d[$k] ?? ''); }
-function box($d, $k) { return !empty($d[$k]) ? '☑' : '☐'; }
+function box($d, $k) { return !empty($d[$k]) ? '■' : '☐'; }
 function ynBox($d, $k, $compare) { 
     $value = $d[$k] ?? 'NO';
-    return ($value === $compare) ? '☑' : '☐';
+    return ($value === $compare) ? '◼' : '☐';
 }
 function formatMeasurement($value, $unit, $default = '______') {
     if (!empty($value) && $value !== '') {
