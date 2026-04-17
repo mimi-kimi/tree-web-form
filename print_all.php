@@ -78,7 +78,17 @@ function formatMeasurement($value, $unit, $default = '______') {
         .btn-excel { background:#10b981; color:#fff; }
         .btn-back { background:#6b7280; color:#fff; }
 
-        .form { width:210mm; margin:0 auto; padding:8mm 10mm; background:#fff; }
+        .form {
+    width: 210mm;
+    margin: 0 auto;
+    padding: 8mm 10mm;
+    background: #fff;
+    page-break-after: always;
+}
+
+.form:last-child {
+    page-break-after: auto;
+}
 
         .title {
             text-align:center;
@@ -210,10 +220,16 @@ function formatMeasurement($value, $unit, $default = '______') {
         }
 
         @media print {
-            .no-print { display:none !important; }
-            body { font-size:9px; }
-            @page { size:A4; margin:8mm; }
-        }
+    .no-print { display:none !important; }
+    body { font-size:9px; }
+    @page { size: A4; margin: 8mm; }
+    .form {
+        page-break-after: always;
+    }
+    .form:last-child {
+        page-break-after: auto;
+    }
+}
     </style>
 </head>
 <body>
@@ -227,7 +243,7 @@ function formatMeasurement($value, $unit, $default = '______') {
 <?php foreach ($trees as $tree): 
     // Use default values if inspection doesn't exist or fields are empty
     $display_preparer_name = !empty($tree['preparer_name']) ? $tree['preparer_name'] : $settings['default_preparer_name'];
-    
+
 ?>
 <div class="form">
     <div class="title">TREE INSPECTION FORM</div>
