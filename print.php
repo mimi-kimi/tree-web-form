@@ -1,5 +1,6 @@
 <?php
 require_once 'config/db.php';
+require_once 'config/settings.php';
 
 $id = intval($_GET['id'] ?? 0);
 if (!$id) { header('Location: index.php'); exit; }
@@ -16,6 +17,10 @@ if (!empty($d['tree_no']) && !empty($d['upload_id'])) {
     $treeStmt->execute([$d['tree_no'], $d['upload_id']]);
     $treeData = $treeStmt->fetch();
 }
+
+// Use default values if inspection fields are empty
+$display_preparer_name = !empty($d['preparer_name']) ? $d['preparer_name'] : $settings['default_preparer_name'];
+$display_prepared_by = !empty($d['prepared_by']) ? $d['prepared_by'] : $settings['default_preparer_title'];
 
 function val($d, $k) { return htmlspecialchars($d[$k] ?? ''); }
 function box($d, $k) { return !empty($d[$k]) ? '☑' : '☐'; }
@@ -130,13 +135,6 @@ function formatMeasurement($value, $unit, $default = '______') {
     
     .signature-section {
       margin-top: 20px;
-    }
-    
-    .signature-line {
-      border-top: 1px solid #000;
-      min-width: 200px;
-      margin-top: 35px;
-      padding-top: 5px;
     }
     
     .name-line {
@@ -378,7 +376,7 @@ function formatMeasurement($value, $unit, $default = '______') {
       <span class="yn-pair">YES <?= ynBox($d,'cavity_crown','YES') ?></span>
       <span class="yn-pair">NO <?= ynBox($d,'cavity_crown','NO') ?></span>
       <?php if (!empty($d['cavity_crown_pct'])): ?>
-      <span> <?= val($d,'cavity_crown_pct') ?>% CIRC.</span>
+      <span>% CIRC. <?= val($d,'cavity_crown_pct') ?></span>
       <?php endif; ?>
     </div>
   </div>
@@ -414,7 +412,7 @@ function formatMeasurement($value, $unit, $default = '______') {
       <span class="yn-pair">YES <?= ynBox($d,'cavity_trunk','YES') ?></span>
       <span class="yn-pair">NO <?= ynBox($d,'cavity_trunk','NO') ?></span>
       <?php if (!empty($d['cavity_trunk_pct'])): ?>
-      <span> <?= val($d,'cavity_trunk_pct') ?>% CIRC.</span>
+      <span>% CIRC. <?= val($d,'cavity_trunk_pct') ?></span>
       <?php endif; ?>
     </div>
   </div>
@@ -462,7 +460,7 @@ function formatMeasurement($value, $unit, $default = '______') {
       <span class="yn-pair">YES <?= ynBox($d,'cavity_root','YES') ?></span>
       <span class="yn-pair">NO <?= ynBox($d,'cavity_root','NO') ?></span>
       <?php if (!empty($d['cavity_root_pct'])): ?>
-      <span> <?= val($d,'cavity_root_pct') ?>% CIRC.</span>
+      <span>% CIRC. <?= val($d,'cavity_root_pct') ?></span>
       <?php endif; ?>
     </div>
   </div>
@@ -517,13 +515,12 @@ function formatMeasurement($value, $unit, $default = '______') {
       </table>
     </div>
     <div class="signature-section">
-      <div style="font-weight:bold;text-decoration:underline;margin-bottom:50px;font-size:10px">PREPARED BY</div>
-      <div class="name-line">
-        <div class="prep-line"></div>
-        <div style="font-size:9px; color:#666; margin-top:4px;">Name</div>
-      </div>
+    <div style="font-weight:bold;text-decoration:underline;font-size:10px; margin-bottom:70px;">PREPARED BY</div>
+    <div>
+        <div style="border-top: 1px solid #000; width: 100%;"></div>
+        <div style="font-size:11px; font-weight:bold; margin-top:5px;"><?= htmlspecialchars($display_preparer_name) ?></div>
     </div>
-  </div>
+</div>
 
 </div>
 </body>

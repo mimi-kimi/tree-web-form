@@ -1,5 +1,6 @@
 <?php
 require_once 'config/db.php';
+require_once 'config/settings.php';
 $pdo = db();
 
 $upload_id = intval($_GET['upload_id'] ?? 0);
@@ -18,7 +19,7 @@ if (!$upload) {
     exit;
 }
 
-// Get all trees with their inspections - FIXED: using tree_no
+// Get all trees with their inspections
 $stmt = $pdo->prepare('
     SELECT 
         t.*,
@@ -223,7 +224,11 @@ function formatMeasurement($value, $unit, $default = '______') {
     <a href="index.php?upload_id=<?= $upload_id ?>" class="btn-back">← Back</a>
 </div>
 
-<?php foreach ($trees as $tree): ?>
+<?php foreach ($trees as $tree): 
+    // Use default values if inspection doesn't exist or fields are empty
+    $display_preparer_name = !empty($tree['preparer_name']) ? $tree['preparer_name'] : $settings['default_preparer_name'];
+    $display_prepared_by = !empty($tree['prepared_by']) ? $tree['prepared_by'] : $settings['default_preparer_title'];
+?>
 <div class="form">
     <div class="title">TREE INSPECTION FORM</div>
     <hr>
@@ -406,7 +411,7 @@ function formatMeasurement($value, $unit, $default = '______') {
             <span class="yn-pair">YES <?= ynBox($tree, 'cavity_crown', 'YES') ?></span>
             <span class="yn-pair">NO <?= ynBox($tree, 'cavity_crown', 'NO') ?></span>
             <?php if (!empty($tree['cavity_crown_pct'])): ?>
-            <span> <?= val($tree, 'cavity_crown_pct') ?>% CIRC.</span>
+            <span>% CIRC. <?= val($tree, 'cavity_crown_pct') ?></span>
             <?php endif; ?>
         </div>
     </div>
@@ -442,7 +447,7 @@ function formatMeasurement($value, $unit, $default = '______') {
             <span class="yn-pair">YES <?= ynBox($tree, 'cavity_trunk', 'YES') ?></span>
             <span class="yn-pair">NO <?= ynBox($tree, 'cavity_trunk', 'NO') ?></span>
             <?php if (!empty($tree['cavity_trunk_pct'])): ?>
-            <span> <?= val($tree, 'cavity_trunk_pct') ?>% CIRC.</span>
+            <span>% CIRC. <?= val($tree, 'cavity_trunk_pct') ?></span>
             <?php endif; ?>
         </div>
     </div>
@@ -490,7 +495,7 @@ function formatMeasurement($value, $unit, $default = '______') {
             <span class="yn-pair">YES <?= ynBox($tree, 'cavity_root', 'YES') ?></span>
             <span class="yn-pair">NO <?= ynBox($tree, 'cavity_root', 'NO') ?></span>
             <?php if (!empty($tree['cavity_root_pct'])): ?>
-            <span> <?= val($tree, 'cavity_root_pct') ?>% CIRC.</span>
+            <span>% CIRC. <?= val($tree, 'cavity_root_pct') ?></span>
             <?php endif; ?>
         </div>
     </div>
@@ -545,12 +550,12 @@ function formatMeasurement($value, $unit, $default = '______') {
             </table>
         </div>
         <div class="signature-section">
-            <div style="font-weight:bold;text-decoration:underline;margin-bottom:50px;font-size:10px">PREPARED BY</div>
-            <div class="name-line">
-                <div class="prep-line"></div>
-                <div style="font-size:9px; color:#666; margin-top:4px;">Name</div>
-            </div>
-        </div>
+    <div style="font-weight:bold;text-decoration:underline;margin-bottom:30px;font-size:10px">PREPARED BY</div>
+    <div>
+        <div style="border-bottom: 1px solid #000; width: 100%;"></div>
+        <div style="font-size:11px; font-weight:bold; margin-top:50px;"><?= htmlspecialchars($display_preparer_name) ?></div>
+    </div>
+</div>
     </div>
 </div>
 <?php endforeach; ?>
